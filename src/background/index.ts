@@ -24,36 +24,50 @@ async function getDeps() {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "lexi-add-word",
-    title: "Add to Lexi",
-    contexts: ["selection"],
+  // removeAll first so re-registering is idempotent across install/update —
+  // on an "update" onInstalled fire, the item from the previous version can
+  // still be registered, and a bare create() would reject on the duplicate id.
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: "lexi-add-word",
+      title: "Add to Lexi",
+      contexts: ["selection"],
+    });
   });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId !== "lexi-add-word" || !info.selectionText) return;
-  const deps = await getDeps();
-  if (!deps.claude) return; // no API key set yet — see options page
-  await addWord(
-    { claude: deps.claude, wordStore: deps.wordStore, detailCache: deps.detailCache, today: todayISO },
-    info.selectionText
-  );
+  try {
+    const deps = await getDeps();
+    if (!deps.claude) return; // no API key set yet — see options page
+    await addWord(
+      { claude: deps.claude, wordStore: deps.wordStore, detailCache: deps.detailCache, today: todayISO },
+      info.selectionText
+    );
+  } catch (err) {
+    console.error("Lexi: failed to add word", err);
+  }
 });
 
 // Guards against chrome.tabs.onActivated and chrome.windows.onFocusChanged both
 // firing for the same tab-switch and racing into overlapping maybeShowWidget
-// calls (both would pass the shouldInjectWidget check before either writes,
-// double-calling the Claude API and double-injecting the content script).
+// calls for that tab (both would pass the shouldInjectWidget check before
+// either writes, double-calling the Claude API and double-injecting the
+// content script). Keyed per-tab so an unrelated tab switch that happens
+// while a different tab's call is in flight is not dropped.
 // This only protects against overlap within one service-worker lifetime —
 // Chrome can terminate/restart the worker between calls — which is an
 // accepted limitation for v1.
-let showingWidget = false;
+const inFlightTabs = new Set<number>();
 
 async function maybeShowWidget(tabId: number) {
-  if (showingWidget) return;
-  showingWidget = true;
+  if (inFlightTabs.has(tabId)) return;
+  inFlightTabs.add(tabId);
   try {
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab.url || !(tab.url.startsWith("http://") || tab.url.startsWith("https://"))) return;
+
     const deps = await getDeps();
     if (!deps.claude) return;
 
@@ -70,8 +84,10 @@ async function maybeShowWidget(tabId: number) {
 
     await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
     await markWidgetShown({ lastShownStore: deps.lastShownStore, todayDate: todayISO });
+  } catch (err) {
+    console.error("Lexi: failed to show widget", err);
   } finally {
-    showingWidget = false;
+    inFlightTabs.delete(tabId);
   }
 }
 
