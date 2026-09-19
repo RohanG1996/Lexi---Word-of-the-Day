@@ -71,7 +71,7 @@ async function maybeShowWidget(tabId: number) {
     const deps = await getDeps();
     if (!deps.claude) return;
 
-    if (!(await shouldInjectWidget({ lastShownStore: deps.lastShownStore, todayDate: todayISO }))) return;
+    if (!(await shouldInjectWidget({ lastShownStore: deps.lastShownStore, today: todayISO }))) return;
 
     await ensureTodayWord({
       claude: deps.claude,
@@ -79,11 +79,11 @@ async function maybeShowWidget(tabId: number) {
       lastShownStore: deps.lastShownStore,
       wordStore: deps.wordStore,
       detailCache: deps.detailCache,
-      todayDate: todayISO,
+      today: todayISO,
     });
 
     await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
-    await markWidgetShown({ lastShownStore: deps.lastShownStore, todayDate: todayISO });
+    await markWidgetShown({ lastShownStore: deps.lastShownStore, today: todayISO });
   } catch (err) {
     console.error("Lexi: failed to show widget", err);
   } finally {

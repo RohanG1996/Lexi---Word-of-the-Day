@@ -20,11 +20,11 @@ export interface WordOfDayDeps {
   detailCache: {
     setDetail(d: { word: string; meaning: string; example: string; cachedAt: string }): Promise<void>;
   };
-  todayDate: () => string;
+  today: () => string;
 }
 
 export async function ensureTodayWord(deps: WordOfDayDeps): Promise<TodayWordRecord> {
-  const today = deps.todayDate();
+  const today = deps.today();
   const existing = await deps.todayWordStore.getTodayWord();
   if (existing && existing.date === today) return existing;
 
@@ -49,10 +49,10 @@ export async function ensureTodayWord(deps: WordOfDayDeps): Promise<TodayWordRec
   return record;
 }
 
-export async function shouldInjectWidget(deps: Pick<WordOfDayDeps, "lastShownStore" | "todayDate">): Promise<boolean> {
-  return shouldShowWidgetToday(await deps.lastShownStore.getLastShownDate(), deps.todayDate());
+export async function shouldInjectWidget(deps: Pick<WordOfDayDeps, "lastShownStore" | "today">): Promise<boolean> {
+  return shouldShowWidgetToday(await deps.lastShownStore.getLastShownDate(), deps.today());
 }
 
-export async function markWidgetShown(deps: Pick<WordOfDayDeps, "lastShownStore" | "todayDate">): Promise<void> {
-  await deps.lastShownStore.setLastShownDate(deps.todayDate());
+export async function markWidgetShown(deps: Pick<WordOfDayDeps, "lastShownStore" | "today">): Promise<void> {
+  await deps.lastShownStore.setLastShownDate(deps.today());
 }

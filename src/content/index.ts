@@ -1,13 +1,15 @@
 import { mountWidget } from "./widget";
+import { createTodayWordStore } from "../lib/dailyWord";
+import { createDetailCache } from "../lib/cache";
 
 async function main() {
-  const syncData = await chrome.storage.sync.get("lexi.todayWord");
-  const today = syncData["lexi.todayWord"] as { date: string; word: string } | undefined;
+  const todayWordStore = createTodayWordStore(chrome.storage.sync);
+  const detailCache = createDetailCache(chrome.storage.local);
+
+  const today = await todayWordStore.getTodayWord();
   if (!today) return;
 
-  const localData = await chrome.storage.local.get("lexi.cache");
-  const cache = (localData["lexi.cache"] as Record<string, { meaning: string; example: string }>) ?? {};
-  const detail = cache[today.word.toLowerCase()];
+  const detail = await detailCache.getDetail(today.word);
   if (!detail) return;
 
   mountWidget({ word: today.word, meaning: detail.meaning, example: detail.example });

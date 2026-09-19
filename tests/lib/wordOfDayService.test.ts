@@ -21,7 +21,7 @@ function makeDeps(today: string) {
     detailCache,
     todayWordStore,
     lastShownStore,
-    todayDate: () => today,
+    today: () => today,
   };
 }
 
@@ -69,7 +69,7 @@ describe("shouldInjectWidget / markWidgetShown", () => {
     await markWidgetShown(deps);
     expect(await shouldInjectWidget(deps)).toBe(false);
 
-    const nextDayDeps = { ...deps, todayDate: () => "2026-09-20" };
+    const nextDayDeps = { ...deps, today: () => "2026-09-20" };
     expect(await shouldInjectWidget(nextDayDeps)).toBe(true);
   });
 });
