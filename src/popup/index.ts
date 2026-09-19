@@ -26,7 +26,7 @@ async function renderList() {
   for (const w of matches) {
     const row = document.createElement("div");
     row.className = "item";
-    row.innerHTML = `<span class="del" data-word="${w.word}">✕</span><div class="w"></div><div class="m"></div>`;
+    row.innerHTML = `<span class="del">✕</span><div class="w"></div><div class="m"></div>`;
     row.querySelector(".w")!.textContent = w.word;
     row.querySelector(".m")!.textContent = w.shortMeaning;
     row.querySelector(".del")!.addEventListener("click", async () => {
