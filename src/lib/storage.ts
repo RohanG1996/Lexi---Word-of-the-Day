@@ -1,0 +1,41 @@
+import type { CompactWordRecord } from "./types";
+
+const KEY = "lexi.words";
+
+export interface StorageArea {
+  get(keys: string | string[] | null): Promise<Record<string, unknown>>;
+  set(items: Record<string, unknown>): Promise<void>;
+  remove(keys: string | string[]): Promise<void>;
+}
+
+export function createWordStore(area: StorageArea) {
+  async function getAllWords(): Promise<CompactWordRecord[]> {
+    const data = await area.get(KEY);
+    return (data[KEY] as CompactWordRecord[]) ?? [];
+  }
+
+  async function saveWord(record: CompactWordRecord): Promise<CompactWordRecord> {
+    const words = await getAllWords();
+    const existing = words.find((w) => w.word.toLowerCase() === record.word.toLowerCase());
+    if (existing) return existing;
+    await area.set({ [KEY]: [...words, record] });
+    return record;
+  }
+
+  async function deleteWord(word: string): Promise<void> {
+    const words = await getAllWords();
+    await area.set({ [KEY]: words.filter((w) => w.word.toLowerCase() !== word.toLowerCase()) });
+  }
+
+  async function updateQuizStats(word: string, known: boolean): Promise<void> {
+    const words = await getAllWords();
+    const updated = words.map((w) =>
+      w.word.toLowerCase() === word.toLowerCase()
+        ? { ...w, quizStats: { seen: w.quizStats.seen + 1, known: w.quizStats.known + (known ? 1 : 0) } }
+        : w
+    );
+    await area.set({ [KEY]: updated });
+  }
+
+  return { getAllWords, saveWord, deleteWord, updateQuizStats };
+}
