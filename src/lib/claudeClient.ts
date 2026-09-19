@@ -4,8 +4,9 @@ export interface WordExplanation {
 }
 
 const API_URL = "https://api.anthropic.com/v1/messages";
-// Placeholder model id - a human should confirm/update this against the
-// current generally-available Claude model before shipping.
+// "claude-sonnet-5" was picked as the current generally-available model id
+// at the time this was written - a human should still confirm it's correct
+// before shipping.
 const MODEL = "claude-sonnet-5";
 
 export function buildExplainPrompt(word: string): string {
@@ -58,7 +59,11 @@ async function callClaude(apiKey: string, prompt: string): Promise<string> {
     throw new Error(`Claude API error: ${response.status}`);
   }
   const data = await response.json();
-  return data.content[0].text as string;
+  const text = data?.content?.[0]?.text;
+  if (typeof text !== "string") {
+    throw new Error("Claude API error: unexpected response shape");
+  }
+  return text;
 }
 
 export function createClaudeClient(apiKey: string): ClaudeClient {

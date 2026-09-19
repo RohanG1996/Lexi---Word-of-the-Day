@@ -63,4 +63,16 @@ describe("createClaudeClient", () => {
     const client = createClaudeClient("sk-ant-test");
     await expect(client.explainWord("ephemeral")).rejects.toThrow("401");
   });
+
+  it("throws a descriptive error when the API responds 200 with an empty/malformed content array", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ content: [] }),
+      })
+    );
+    const client = createClaudeClient("sk-ant-test");
+    await expect(client.explainWord("ephemeral")).rejects.toThrow("unexpected response shape");
+  });
 });
