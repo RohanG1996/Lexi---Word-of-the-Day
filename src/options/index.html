@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Lexi settings</title>
+    <style>
+      body { font-family: sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+      input, button { padding: 8px; font-size: 14px; }
+      input { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+      .err { color: #a33; font-size: 13px; }
+      .ok { color: #2a7; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>Lexi settings</h1>
+    <p>Paste your Anthropic API key. It's stored only on this device and is never synced.</p>
+    <input id="apiKey" type="password" placeholder="sk-ant-..." />
+    <button id="save">Save</button>
+    <div id="status"></div>
+    <script src="options.js"></script>
+  </body>
+</html>
