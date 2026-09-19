@@ -4,12 +4,12 @@ import { cpSync, mkdirSync } from "node:fs";
 mkdirSync("dist", { recursive: true });
 
 await build({
-  entryPoints: [
-    "src/background/index.ts",
-    "src/content/index.ts",
-    "src/popup/index.ts",
-    "src/options/index.ts",
-  ],
+  entryPoints: {
+    background: "src/background/index.ts",
+    content: "src/content/index.ts",
+    popup: "src/popup/index.ts",
+    options: "src/options/index.ts",
+  },
   outdir: "dist",
   bundle: true,
   format: "iife",
