@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Lexi</title>
+    <style>
+      body { width: 320px; font-family: sans-serif; padding: 12px; margin: 0; }
+      input, button { width: 100%; box-sizing: border-box; margin-bottom: 8px; padding: 6px; font-size: 13px; }
+      .item { border-bottom: 1px solid #eee; padding: 6px 0; }
+      .item .w { font-weight: 600; }
+      .item .m { color: #555; font-size: 12px; }
+      .del { float: right; cursor: pointer; color: #a33; }
+      #quiz { border-top: 1px solid #eee; padding-top: 8px; }
+      .err { color: #a33; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <input id="search" placeholder="Search your words..." />
+    <div id="list"></div>
+
+    <hr />
+    <input id="newWord" placeholder="Add a word..." />
+    <button id="addBtn">Add</button>
+    <div id="addErr" class="err"></div>
+
+    <hr />
+    <button id="quizBtn">Quiz me</button>
+    <div id="quiz"></div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
