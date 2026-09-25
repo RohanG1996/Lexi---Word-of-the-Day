@@ -36,6 +36,11 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Clicking the toolbar icon opens the side panel instead of a popup.
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+  console.error("Lexi: failed to set side panel behavior", err);
+});
+
 chrome.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId !== "lexi-add-word" || !info.selectionText) return;
   try {

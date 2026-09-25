@@ -3,13 +3,21 @@
   "name": "Lexi",
   "version": "0.1.0",
   "description": "A word of the day, with room to save the ones you find on your own.",
-  "permissions": ["storage", "contextMenus", "activeTab", "scripting"],
+  "permissions": ["storage", "contextMenus", "activeTab", "scripting", "sidePanel"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
-  "action": {
-    "default_popup": "popup.html"
+  "action": {},
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["selection.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "options_page": "options.html"
 }

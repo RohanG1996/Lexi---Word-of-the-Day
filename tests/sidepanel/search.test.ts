@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterWords } from "../../src/popup/search";
+import { filterWords } from "../../src/sidepanel/search";
 import type { CompactWordRecord } from "../../src/lib/types";
 
 const words: CompactWordRecord[] = [

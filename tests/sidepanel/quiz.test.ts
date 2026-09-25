@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickNextQuizWord } from "../../src/popup/quiz";
+import { pickNextQuizWord } from "../../src/sidepanel/quiz";
 import type { CompactWordRecord } from "../../src/lib/types";
 
 function word(w: string, seen: number, known: number): CompactWordRecord {
