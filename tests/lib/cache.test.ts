@@ -10,7 +10,14 @@ describe("createDetailCache", () => {
 
   it("stores and retrieves a word's full detail, case-insensitively", async () => {
     const cache = createDetailCache(createFakeStorageArea());
-    await cache.setDetail({ word: "Ephemeral", meaning: "lasting a short time", example: "It was ephemeral.", cachedAt: "2026-09-19" });
+    await cache.setDetail({
+      word: "Ephemeral",
+      meaning: "lasting a short time",
+      example: "It was ephemeral.",
+      pronunciation: "/əˈfem(ə)rəl/",
+      partOfSpeech: "adjective",
+      cachedAt: "2026-09-19",
+    });
     const detail = await cache.getDetail("ephemeral");
     expect(detail?.meaning).toBe("lasting a short time");
   });

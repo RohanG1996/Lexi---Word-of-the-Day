@@ -2,9 +2,10 @@ import { createWordStore } from "../lib/storage";
 import { createDetailCache } from "../lib/cache";
 import { createApiKeyStore } from "../lib/apiKey";
 import { createTodayWordStore, createLastShownStore } from "../lib/dailyWord";
-import { createClaudeClient } from "../lib/claudeClient";
+import { createModelClient } from "../lib/modelClient";
 import { ensureTodayWord, shouldInjectWidget, markWidgetShown } from "../lib/wordOfDayService";
 import { addWord } from "../lib/addWord";
+import { ADD_WORD_MESSAGE, type AddWordRequest, type AddWordResponse } from "../lib/messages";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -12,10 +13,10 @@ function todayISO(): string {
 
 async function getDeps() {
   const apiKeyStore = createApiKeyStore(chrome.storage.local);
-  const apiKey = await apiKeyStore.getApiKey();
+  const settings = await apiKeyStore.getSettings();
   return {
-    apiKey,
-    claude: apiKey ? createClaudeClient(apiKey) : null,
+    settings,
+    model: settings ? createModelClient(settings.provider, settings.key) : null,
     wordStore: createWordStore(chrome.storage.sync),
     detailCache: createDetailCache(chrome.storage.local),
     todayWordStore: createTodayWordStore(chrome.storage.sync),
@@ -45,9 +46,9 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId !== "lexi-add-word" || !info.selectionText) return;
   try {
     const deps = await getDeps();
-    if (!deps.claude) return; // no API key set yet — see options page
+    if (!deps.model) return; // no API key set yet — see options page
     await addWord(
-      { claude: deps.claude, wordStore: deps.wordStore, detailCache: deps.detailCache, today: todayISO },
+      { model: deps.model, wordStore: deps.wordStore, detailCache: deps.detailCache, today: todayISO },
       info.selectionText
     );
   } catch (err) {
@@ -58,7 +59,7 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 // Guards against chrome.tabs.onActivated and chrome.windows.onFocusChanged both
 // firing for the same tab-switch and racing into overlapping maybeShowWidget
 // calls for that tab (both would pass the shouldInjectWidget check before
-// either writes, double-calling the Claude API and double-injecting the
+// either writes, double-calling the model API and double-injecting the
 // content script). Keyed per-tab so an unrelated tab switch that happens
 // while a different tab's call is in flight is not dropped.
 // This only protects against overlap within one service-worker lifetime —
@@ -74,12 +75,12 @@ async function maybeShowWidget(tabId: number) {
     if (!tab.url || !(tab.url.startsWith("http://") || tab.url.startsWith("https://"))) return;
 
     const deps = await getDeps();
-    if (!deps.claude) return;
+    if (!deps.model) return;
 
     if (!(await shouldInjectWidget({ lastShownStore: deps.lastShownStore, today: todayISO }))) return;
 
     await ensureTodayWord({
-      claude: deps.claude,
+      model: deps.model,
       todayWordStore: deps.todayWordStore,
       lastShownStore: deps.lastShownStore,
       wordStore: deps.wordStore,
@@ -95,6 +96,34 @@ async function maybeShowWidget(tabId: number) {
     inFlightTabs.delete(tabId);
   }
 }
+
+// Content scripts run inside the host page, so their own fetch() is subject
+// to that page's Content-Security-Policy - host_permissions in the manifest
+// only exempts privileged extension contexts (this service worker, extension
+// pages) from that, not a content script's own network calls. So the
+// highlight-to-save popover and the widget's save button don't call the
+// model API themselves; they message this listener, which runs the real
+// addWord() call from here instead, where it isn't subject to page CSP.
+chrome.runtime.onMessage.addListener((message: AddWordRequest, _sender, sendResponse: (r: AddWordResponse) => void) => {
+  if (message?.type !== ADD_WORD_MESSAGE || typeof message.word !== "string") return undefined;
+  (async () => {
+    try {
+      const deps = await getDeps();
+      if (!deps.model) {
+        sendResponse({ ok: false, error: "Add your API key in Options first." });
+        return;
+      }
+      const record = await addWord(
+        { model: deps.model, wordStore: deps.wordStore, detailCache: deps.detailCache, today: todayISO },
+        message.word
+      );
+      sendResponse({ ok: true, record });
+    } catch (err) {
+      sendResponse({ ok: false, error: err instanceof Error ? err.message : "Couldn't save that word." });
+    }
+  })();
+  return true; // keep the message channel open for the async sendResponse above
+});
 
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   maybeShowWidget(tabId);

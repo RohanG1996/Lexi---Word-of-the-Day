@@ -1,11 +1,12 @@
 import { createWordStore } from "../lib/storage";
 import { createDetailCache } from "../lib/cache";
 import { createApiKeyStore } from "../lib/apiKey";
-import { createClaudeClient } from "../lib/claudeClient";
+import { createModelClient } from "../lib/modelClient";
 import { addWord } from "../lib/addWord";
 import { filterWords } from "./search";
 import { pickNextQuizWord } from "./quiz";
 import type { CompactWordRecord } from "../lib/types";
+import { ICON_BOOK } from "../lib/icons";
 
 const wordStore = createWordStore(chrome.storage.sync);
 const detailCache = createDetailCache(chrome.storage.local);
@@ -17,6 +18,14 @@ let view: View = "library";
 let searchQuery = "";
 
 const app = document.getElementById("app") as HTMLDivElement;
+
+// Saving a word from the content-script highlight popover (or the widget)
+// writes to this same chrome.storage.sync key from a different context - keep
+// the library/search/all-words views live instead of requiring a re-open.
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "sync" || !changes["lexi.words"]) return;
+  if (view === "library" || view === "allWords" || view === "search") render();
+});
 
 function daysAgo(days: number): Date {
   const d = new Date();
@@ -177,11 +186,13 @@ function renderSave(): HTMLDivElement {
   body.innerHTML = `
     <div class="label section" style="margin-left:0;">New word</div>
     <input placeholder="Type a word..." />
-    <button class="primaryBtn"><span class="material-icons">auto_stories</span>Add to my library</button>
+    <button class="primaryBtn">${ICON_BOOK}Add to my library</button>
     <div class="err"></div>
+    <div class="success" hidden></div>
     <div class="preview" hidden>
       <div class="label section" style="margin-left:0;">Preview</div>
       <div class="pword"></div>
+      <div class="ppron"></div>
       <div class="pmeaning"></div>
       <div class="pexample"></div>
     </div>
@@ -191,26 +202,119 @@ function renderSave(): HTMLDivElement {
   const input = body.querySelector("input") as HTMLInputElement;
   const addBtn = body.querySelector(".primaryBtn") as HTMLButtonElement;
   const errEl = body.querySelector(".err") as HTMLDivElement;
+  const successEl = body.querySelector(".success") as HTMLDivElement;
   const preview = body.querySelector(".preview") as HTMLDivElement;
+
+  let previewWord: string | null = null;
+  let previewExplanation: { meaning: string; example: string; pronunciation: string; partOfSpeech: string } | null =
+    null;
+  let previewTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function showPreview(word: string, e: { meaning: string; example: string; pronunciation: string; partOfSpeech: string }): void {
+    preview.hidden = false;
+    preview.querySelector(".pword")!.textContent = word;
+    preview.querySelector(".ppron")!.textContent = [e.pronunciation, e.partOfSpeech].filter(Boolean).join("  ·  ");
+    preview.querySelector(".pmeaning")!.textContent = e.meaning;
+    preview.querySelector(".pexample")!.textContent = e.example;
+  }
+
+  async function loadPreview(): Promise<void> {
+    const word = input.value.trim();
+    if (word.length < 2) {
+      preview.hidden = true;
+      previewWord = null;
+      previewExplanation = null;
+      return;
+    }
+    const settings = await createApiKeyStore(chrome.storage.local).getSettings();
+    if (!settings) return;
+
+    const existing = (await wordStore.getAllWords()).find((w) => w.word.toLowerCase() === word.toLowerCase());
+    try {
+      let explanation: { meaning: string; example: string; pronunciation: string; partOfSpeech: string };
+      if (existing) {
+        const detail = await detailCache.getDetail(existing.word);
+        explanation = {
+          meaning: existing.shortMeaning,
+          example: detail?.example ?? "",
+          pronunciation: detail?.pronunciation ?? "",
+          partOfSpeech: detail?.partOfSpeech ?? "",
+        };
+      } else {
+        explanation = await createModelClient(settings.provider, settings.key).explainWord(word);
+      }
+      if (input.value.trim().toLowerCase() !== word.toLowerCase()) return; // stale by the time it resolved
+      previewWord = word;
+      previewExplanation = explanation;
+      showPreview(existing?.word ?? word, explanation);
+    } catch {
+      // preview is best-effort; the Add button surfaces the real error
+    }
+  }
+
+  input.addEventListener("input", () => {
+    preview.hidden = true;
+    successEl.hidden = true;
+    previewWord = null;
+    previewExplanation = null;
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = setTimeout(loadPreview, 500);
+  });
+  input.addEventListener("blur", () => {
+    if (previewTimer) clearTimeout(previewTimer);
+    loadPreview();
+  });
 
   addBtn.addEventListener("click", async () => {
     errEl.textContent = "";
-    const apiKey = await createApiKeyStore(chrome.storage.local).getApiKey();
-    if (!apiKey) {
+    successEl.hidden = true;
+    const word = input.value.trim();
+    const settings = await createApiKeyStore(chrome.storage.local).getSettings();
+    if (!settings) {
       errEl.textContent = "Add your API key in Options first.";
       return;
     }
     try {
-      const record = await addWord(
-        { claude: createClaudeClient(apiKey), wordStore, detailCache, today },
-        input.value
-      );
+      let record: CompactWordRecord;
+      if (previewWord && previewExplanation && previewWord.toLowerCase() === word.toLowerCase()) {
+        const existing = (await wordStore.getAllWords()).find((w) => w.word.toLowerCase() === word.toLowerCase());
+        if (existing) {
+          record = existing;
+        } else {
+          record = await wordStore.saveWord({
+            word,
+            shortMeaning: previewExplanation.meaning,
+            savedDate: today(),
+            source: "manual",
+            quizStats: { seen: 0, known: 0 },
+          });
+          await detailCache.setDetail({
+            word,
+            meaning: previewExplanation.meaning,
+            example: previewExplanation.example,
+            pronunciation: previewExplanation.pronunciation,
+            partOfSpeech: previewExplanation.partOfSpeech,
+            cachedAt: today(),
+          });
+        }
+      } else {
+        record = await addWord(
+          { model: createModelClient(settings.provider, settings.key), wordStore, detailCache, today },
+          word
+        );
+      }
       const detail = await detailCache.getDetail(record.word);
-      preview.hidden = false;
-      preview.querySelector(".pword")!.textContent = record.word;
-      preview.querySelector(".pmeaning")!.textContent = record.shortMeaning;
-      preview.querySelector(".pexample")!.textContent = detail?.example ?? "";
+      showPreview(record.word, {
+        meaning: record.shortMeaning,
+        example: detail?.example ?? "",
+        pronunciation: detail?.pronunciation ?? "",
+        partOfSpeech: detail?.partOfSpeech ?? "",
+      });
+      successEl.hidden = false;
+      successEl.textContent = `${record.word} — added to your library`;
       input.value = "";
+      previewWord = null;
+      previewExplanation = null;
     } catch (e) {
       errEl.textContent = e instanceof Error ? e.message : "Couldn't add that word.";
     }

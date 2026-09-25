@@ -10,5 +10,7 @@ export interface FullWordDetail {
   word: string;
   meaning: string;
   example: string;
+  pronunciation: string;
+  partOfSpeech: string;
   cachedAt: string; // ISO date
 }

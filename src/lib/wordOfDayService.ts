@@ -1,10 +1,10 @@
-import type { ClaudeClient } from "./claudeClient";
-import type { CompactWordRecord } from "./types";
+import type { ModelClient } from "./modelClient";
+import type { CompactWordRecord, FullWordDetail } from "./types";
 import type { TodayWordRecord } from "./dailyWord";
 import { shouldShowWidgetToday } from "./trigger";
 
 export interface WordOfDayDeps {
-  claude: ClaudeClient;
+  model: ModelClient;
   todayWordStore: {
     getTodayWord(): Promise<TodayWordRecord | null>;
     setTodayWord(r: TodayWordRecord): Promise<void>;
@@ -18,7 +18,7 @@ export interface WordOfDayDeps {
     saveWord(r: CompactWordRecord): Promise<CompactWordRecord>;
   };
   detailCache: {
-    setDetail(d: { word: string; meaning: string; example: string; cachedAt: string }): Promise<void>;
+    setDetail(d: FullWordDetail): Promise<void>;
   };
   today: () => string;
 }
@@ -32,8 +32,8 @@ export async function ensureTodayWord(deps: WordOfDayDeps): Promise<TodayWordRec
     .filter((w) => w.source === "daily")
     .map((w) => w.word);
 
-  const word = await deps.claude.pickWordOfDay(history);
-  const explanation = await deps.claude.explainWord(word);
+  const word = await deps.model.pickWordOfDay(history);
+  const explanation = await deps.model.explainWord(word);
 
   await deps.wordStore.saveWord({
     word,
@@ -42,7 +42,14 @@ export async function ensureTodayWord(deps: WordOfDayDeps): Promise<TodayWordRec
     source: "daily",
     quizStats: { seen: 0, known: 0 },
   });
-  await deps.detailCache.setDetail({ word, meaning: explanation.meaning, example: explanation.example, cachedAt: today });
+  await deps.detailCache.setDetail({
+    word,
+    meaning: explanation.meaning,
+    example: explanation.example,
+    pronunciation: explanation.pronunciation,
+    partOfSpeech: explanation.partOfSpeech,
+    cachedAt: today,
+  });
 
   const record = { date: today, word };
   await deps.todayWordStore.setTodayWord(record);

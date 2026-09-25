@@ -1,14 +1,14 @@
-import type { ClaudeClient } from "./claudeClient";
-import type { CompactWordRecord } from "./types";
+import type { ModelClient } from "./modelClient";
+import type { CompactWordRecord, FullWordDetail } from "./types";
 
 export interface AddWordDeps {
-  claude: ClaudeClient;
+  model: ModelClient;
   wordStore: {
     getAllWords(): Promise<CompactWordRecord[]>;
     saveWord(r: CompactWordRecord): Promise<CompactWordRecord>;
   };
   detailCache: {
-    setDetail(d: { word: string; meaning: string; example: string; cachedAt: string }): Promise<void>;
+    setDetail(d: FullWordDetail): Promise<void>;
   };
   today: () => string;
 }
@@ -22,7 +22,7 @@ export async function addWord(deps: AddWordDeps, rawWord: string): Promise<Compa
   );
   if (existing) return existing;
 
-  const explanation = await deps.claude.explainWord(word);
+  const explanation = await deps.model.explainWord(word);
   const record: CompactWordRecord = {
     word,
     shortMeaning: explanation.meaning,
@@ -31,6 +31,13 @@ export async function addWord(deps: AddWordDeps, rawWord: string): Promise<Compa
     quizStats: { seen: 0, known: 0 },
   };
   await deps.wordStore.saveWord(record);
-  await deps.detailCache.setDetail({ word, meaning: explanation.meaning, example: explanation.example, cachedAt: deps.today() });
+  await deps.detailCache.setDetail({
+    word,
+    meaning: explanation.meaning,
+    example: explanation.example,
+    pronunciation: explanation.pronunciation,
+    partOfSpeech: explanation.partOfSpeech,
+    cachedAt: deps.today(),
+  });
   return record;
 }

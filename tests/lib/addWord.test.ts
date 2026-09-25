@@ -3,16 +3,21 @@ import { createWordStore } from "../../src/lib/storage";
 import { createDetailCache } from "../../src/lib/cache";
 import { createFakeStorageArea } from "../mocks/fakeStorageArea";
 import { addWord } from "../../src/lib/addWord";
-import type { ClaudeClient } from "../../src/lib/claudeClient";
+import type { ModelClient } from "../../src/lib/modelClient";
 
 function makeDeps() {
   const wordStore = createWordStore(createFakeStorageArea());
   const detailCache = createDetailCache(createFakeStorageArea());
-  const claude: ClaudeClient = {
+  const model: ModelClient = {
     pickWordOfDay: vi.fn(),
-    explainWord: vi.fn().mockResolvedValue({ meaning: "lasting a short time", example: "It was ephemeral." }),
+    explainWord: vi.fn().mockResolvedValue({
+      meaning: "lasting a short time",
+      example: "It was ephemeral.",
+      pronunciation: "/əˈfem(ə)rəl/",
+      partOfSpeech: "adjective",
+    }),
   };
-  return { claude, wordStore, detailCache, today: () => "2026-09-19" };
+  return { model, wordStore, detailCache, today: () => "2026-09-19" };
 }
 
 describe("addWord", () => {
@@ -25,14 +30,14 @@ describe("addWord", () => {
     const record = await addWord(deps, "ephemeral");
     expect(record.shortMeaning).toBe("lasting a short time");
     expect(record.source).toBe("manual");
-    expect(deps.claude.explainWord).toHaveBeenCalledWith("ephemeral");
+    expect(deps.model.explainWord).toHaveBeenCalledWith("ephemeral");
   });
 
-  it("returns the existing record for a duplicate without calling Claude again", async () => {
+  it("returns the existing record for a duplicate without calling the model again", async () => {
     const deps = makeDeps();
     await addWord(deps, "ephemeral");
     await addWord(deps, "Ephemeral");
-    expect(deps.claude.explainWord).toHaveBeenCalledOnce();
+    expect(deps.model.explainWord).toHaveBeenCalledOnce();
     expect(await deps.wordStore.getAllWords()).toHaveLength(1);
   });
 });

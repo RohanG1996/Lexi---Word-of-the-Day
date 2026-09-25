@@ -5,16 +5,20 @@
     <title>Lexi settings</title>
     <style>
       body { font-family: sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
-      input, button { padding: 8px; font-size: 14px; }
-      input { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+      input, select, button { padding: 8px; font-size: 14px; }
+      input, select { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+      label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
       .err { color: #a33; font-size: 13px; }
       .ok { color: #2a7; font-size: 13px; }
     </style>
   </head>
   <body>
     <h1>Lexi settings</h1>
-    <p>Paste your Anthropic API key. It's stored only on this device and is never synced.</p>
-    <input id="apiKey" type="password" placeholder="sk-ant-..." />
+    <p>Pick a model provider and paste its API key. The key is stored only on this device and is never synced.</p>
+    <label for="provider">Provider</label>
+    <select id="provider"></select>
+    <label for="apiKey">API key</label>
+    <input id="apiKey" type="password" placeholder="" />
     <button id="save">Save</button>
     <div id="status"></div>
     <script src="options.js"></script>
