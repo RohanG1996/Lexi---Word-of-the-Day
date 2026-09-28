@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { renderWidget } from "../../src/content/widget";
+import { renderWidget, snapCardLayout } from "../../src/content/widget";
 
 function makeHandlers() {
   return { onClose: vi.fn(), onToggleCollapse: vi.fn(), onSave: vi.fn().mockResolvedValue(undefined) };
@@ -94,6 +94,49 @@ describe("renderWidget", () => {
 
     expect(root.querySelector(".pillWord")?.textContent).toBe("ephemeral");
     expect(root.querySelector(".card")).toBeNull();
+  });
+
+  it("grows multi-line rows in whole 35px steps and puts their last line on a rule", () => {
+    const host = document.createElement("div");
+    const root = host.attachShadow({ mode: "open" });
+    renderWidget(root, makeData(), makeHandlers(), false);
+    const card = root.querySelector(".card") as HTMLElement;
+
+    const heights = new Map<Element, number>([
+      [card.querySelector(".meaning .blk")!, 52.5],
+      [card.querySelector(".example .blk")!, 17.5],
+    ]);
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      return { width: 0, height: heights.get(this) ?? 0 } as DOMRect;
+    });
+    snapCardLayout(card);
+    spy.mockRestore();
+
+    const meaning = card.querySelector(".meaning") as HTMLElement;
+    const example = card.querySelector(".example") as HTMLElement;
+    expect(meaning.style.height).toBe("70px");
+    expect(meaning.classList.contains("multi")).toBe(true);
+    expect(example.style.height).toBe("35px");
+    expect(example.classList.contains("multi")).toBe(false);
+  });
+
+  it("shrinks a word that is too wide for the card", () => {
+    const host = document.createElement("div");
+    const root = host.attachShadow({ mode: "open" });
+    renderWidget(root, makeData({ word: "uncharacteristically" }), makeHandlers(), false);
+    const card = root.querySelector(".card") as HTMLElement;
+    const wordRow = card.querySelector(".wordRow") as HTMLElement;
+    const wordEl = card.querySelector(".word") as HTMLElement;
+
+    Object.defineProperty(wordRow, "clientWidth", { value: 253, configurable: true });
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const size = parseInt((this as HTMLElement).style.fontSize || "26", 10);
+      return { width: this === wordEl ? size * 10 : 0, height: 0 } as DOMRect;
+    });
+    snapCardLayout(card);
+    spy.mockRestore();
+
+    expect(wordEl.style.fontSize).toBe("22px");
   });
 
   it("calls onToggleCollapse when the collapsed pill is clicked", () => {
