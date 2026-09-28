@@ -23,7 +23,7 @@ const CSS = `
   :host { all: initial; }
   .card, .pill {
     --paper: #F7F3EA; --ink: #171717; --ink-2: #45423E; --muted: #66615A; --border: #D8D3C9;
-    --rule: rgba(110,155,215,0.5); --margin: rgba(214,100,96,0.7); --cta: rgba(110,155,215,0.9); --line: #77736C;
+    --rule: rgba(110,155,215,0.3); --margin: rgba(214,100,96,0.42); --btn: #EDE6D4; --line: #77736C;
     --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
     --sans: 'Manrope', -apple-system, 'Segoe UI', Roboto, sans-serif;
     --row: 24px;
@@ -81,11 +81,11 @@ const CSS = `
   /* footer: 3 rows; the button is opaque so the rules pass behind it */
   .footer { position: relative; box-sizing: border-box; padding: 12px 16px 26px 32px; display: flex; align-items: center; justify-content: center; }
   .saveBtn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 34px; box-sizing: border-box; font-family: var(--sans); font-size: 12px; font-weight: 400; color: #272727;
-    background: var(--paper); border: 1.5px solid var(--cta); border-radius: 9px; padding: 0 16px; white-space: nowrap; transition: background .15s; }
-  .saveBtn:hover:not(:disabled) { background: #F1EBDD; }
+    background: var(--btn); border: none; border-radius: 9px; padding: 0 16px; white-space: nowrap; transition: background .15s; }
+  .saveBtn:hover:not(:disabled) { background: #E6DEC9; }
   .saveBtn svg { width: 15px; height: 15px; }
   .saveBtn:disabled { cursor: default; opacity: 0.7; }
-  .saveBtn.saved { cursor: default; opacity: 1; color: #5a7d5f; border-color: #bcd0bd; }
+  .saveBtn.saved { cursor: default; opacity: 1; color: #4F7053; }
   .widgetErr { margin: 0; padding: 0 16px 0 32px; height: var(--row); line-height: var(--row); text-align: center; font-family: var(--sans); font-size: 10px; color: #a33; }
   .widgetErr:empty { display: none; }
 

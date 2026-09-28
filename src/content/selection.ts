@@ -3,7 +3,7 @@ import { ADD_WORD_MESSAGE, type AddWordResponse } from "../lib/messages";
 import { isLookupCandidate } from "./selectionRules";
 
 const POPOVER_WIDTH = 190;
-const POPOVER_HEIGHT_ESTIMATE = 116;
+const POPOVER_HEIGHT_ESTIMATE = 124;
 const GAP = 12;
 // Cormorant Garamond is decorative only (falls back to Georgia if this fails
 // to load on a page with a strict CSP) - unlike Material Icons, dropped
@@ -51,10 +51,11 @@ function injectStyles(root: ShadowRoot): void {
     .word { min-height: 35px; box-sizing: border-box; display: flex; align-items: center; padding: 0 12px 0 14px; word-break: break-word;
       font-family: 'Cormorant Garamond', Georgia, serif; font-size: 20px; line-height: 22px; font-weight: 500; letter-spacing: -0.01em; }
     .action { display: flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; width: calc(100% - 26px); height: 32px;
-      margin: 2px 12px 12px 14px; font-size: 11px; font-weight: 500; color: #2B2822; background: transparent;
-      border: 1.5px solid var(--cta); border-radius: 8px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+      margin: 10px 12px 12px 14px; font-size: 11px; font-weight: 500; color: #2B2822; background: #EDE6D4;
+      border: none; border-radius: 8px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .action:hover:not(:disabled) { background: #E6DEC9; }
     .action svg { width: 14px; height: 14px; }
-    .action.saved { color: #4F7053; border-color: #BCD0BD; cursor: default; }
+    .action.saved { color: #4F7053; cursor: default; }
     .action:disabled { cursor: default; opacity: 0.75; }
     .err { color: #A33333; font-size: 10px; padding: 0 12px 10px 14px; }
     .err:empty { display: none; }
