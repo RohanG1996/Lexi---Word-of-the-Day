@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { renderWidget } from "../../src/content/widget";
+import { renderWidget, fitWord } from "../../src/content/widget";
 
 function makeHandlers() {
   return { onClose: vi.fn(), onToggleCollapse: vi.fn(), onSave: vi.fn().mockResolvedValue(undefined) };
@@ -69,6 +69,7 @@ describe("renderWidget", () => {
     await Promise.resolve();
 
     expect(handlers.onSave).toHaveBeenCalledOnce();
+    expect(saveBtn.classList.contains("saved")).toBe(true);
     expect(saveBtn.textContent).toContain("Added to my library");
   });
 
@@ -94,6 +95,35 @@ describe("renderWidget", () => {
 
     expect(root.querySelector(".pillWord")?.textContent).toBe("ephemeral");
     expect(root.querySelector(".card")).toBeNull();
+  });
+
+  it("shows the zero-padded word number only when one is provided", () => {
+    const host = document.createElement("div");
+    const root = host.attachShadow({ mode: "open" });
+    renderWidget(root, makeData({ wordNumber: 27 }), makeHandlers(), false);
+    expect(root.querySelector(".num")?.textContent).toBe("No. 027");
+
+    renderWidget(root, makeData(), makeHandlers(), false);
+    expect(root.querySelector(".num")?.textContent).toBe("");
+  });
+
+  it("shrinks a word that is too wide for the card", () => {
+    const host = document.createElement("div");
+    const root = host.attachShadow({ mode: "open" });
+    renderWidget(root, makeData({ word: "uncharacteristically" }), makeHandlers(), false);
+    const card = root.querySelector(".card") as HTMLElement;
+    const column = card.querySelector(".content") as HTMLElement;
+    const wordEl = card.querySelector(".word") as HTMLElement;
+
+    Object.defineProperty(column, "clientWidth", { value: 480, configurable: true });
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const size = parseInt((this as HTMLElement).style.fontSize || "56", 10);
+      return { width: this === wordEl ? size * 8 : 0, height: 0 } as DOMRect;
+    });
+    fitWord(card);
+    spy.mockRestore();
+
+    expect(wordEl.style.fontSize).toBe("44px");
   });
 
   it("calls onToggleCollapse when the collapsed pill is clicked", () => {
