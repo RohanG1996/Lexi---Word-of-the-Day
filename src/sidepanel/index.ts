@@ -6,7 +6,16 @@ import { addWord } from "../lib/addWord";
 import { filterWords } from "./search";
 import { pickNextQuizWord } from "./quiz";
 import type { CompactWordRecord } from "../lib/types";
-import { ICON_BOOK } from "../lib/icons";
+import {
+  ICON_BOOK,
+  ICON_BACK,
+  ICON_LIST,
+  ICON_SEARCH,
+  ICON_PLUS,
+  ICON_SCHOOL,
+  ICON_SETTINGS,
+  ICON_CHEVRON_DOWN,
+} from "../lib/icons";
 
 const wordStore = createWordStore(chrome.storage.sync);
 const detailCache = createDetailCache(chrome.storage.local);
@@ -52,18 +61,64 @@ function goTo(next: View): void {
   render();
 }
 
+// A saved word is an accordion: one click on the row shows the pronunciation, full meaning and example (read
+// lazily from the local detail cache, falling back to the short meaning). Opening one row closes any other.
 function wordRow(w: CompactWordRecord): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "row";
   row.innerHTML = `
-    <div><div class="word"></div><div class="meaning"></div></div>
-    <button class="del material-icons" aria-label="Remove ${w.word}">close</button>
+    <button class="rowHead" aria-expanded="false">
+      <div class="rowText"><div class="word"></div><div class="meaning"></div></div>
+      <span class="chev" aria-hidden="true">${ICON_CHEVRON_DOWN}</span>
+    </button>
+    <div class="rowBody" hidden></div>
   `;
   row.querySelector(".word")!.textContent = w.word;
   row.querySelector(".meaning")!.textContent = w.shortMeaning;
-  row.querySelector(".del")!.addEventListener("click", async () => {
-    await wordStore.deleteWord(w.word);
-    render();
+
+  const head = row.querySelector(".rowHead") as HTMLButtonElement;
+  const body = row.querySelector(".rowBody") as HTMLDivElement;
+  let loaded = false;
+
+  async function fillBody(): Promise<void> {
+    const detail = await detailCache.getDetail(w.word);
+    const hasPron = Boolean(detail?.pronunciation || detail?.partOfSpeech);
+    const hasExample = Boolean(detail?.example);
+    body.innerHTML = `
+      <div class="pron" ${hasPron ? "" : "hidden"}></div>
+      <div class="full"></div>
+      <div class="exBox" ${hasExample ? "" : "hidden"}>
+        <div class="exLabel">Example</div>
+        <div class="ex"></div>
+      </div>
+    `;
+    const pron = body.querySelector(".pron") as HTMLDivElement;
+    pron.textContent = detail?.pronunciation ?? "";
+    if (detail?.partOfSpeech) {
+      const pos = document.createElement("i");
+      pos.textContent = detail.partOfSpeech;
+      pron.appendChild(pos);
+    }
+    body.querySelector(".full")!.textContent = detail?.meaning || w.shortMeaning;
+    body.querySelector(".ex")!.textContent = detail?.example ?? "";
+  }
+
+  head.addEventListener("click", async () => {
+    const opening = !row.classList.contains("open");
+    if (opening) {
+      for (const other of app.querySelectorAll<HTMLElement>(".row.open")) {
+        other.classList.remove("open");
+        other.querySelector(".rowHead")!.setAttribute("aria-expanded", "false");
+        (other.querySelector(".rowBody") as HTMLElement).hidden = true;
+      }
+      if (!loaded) {
+        loaded = true;
+        await fillBody();
+      }
+    }
+    row.classList.toggle("open", opening);
+    head.setAttribute("aria-expanded", String(opening));
+    body.hidden = !opening;
   });
   return row;
 }
@@ -72,7 +127,7 @@ function backHeader(title: string): HTMLDivElement {
   const header = document.createElement("div");
   header.className = "subHeader";
   header.innerHTML = `
-    <button class="iconBtn back" aria-label="Back"><span class="material-icons">arrow_back</span></button>
+    <button class="iconBtn back" aria-label="Back">${ICON_BACK}</button>
     <div class="title"></div>
   `;
   header.querySelector(".title")!.textContent = title;
@@ -89,24 +144,28 @@ function renderLibrary(all: CompactWordRecord[]): HTMLDivElement {
   const header = document.createElement("div");
   header.className = "header";
   header.innerHTML = `
-    <div class="stamp"><span class="material-icons">local_library</span></div>
     <div class="who">
       <div class="name">Your Library</div>
       <div class="label"></div>
     </div>
-    <button class="iconBtn" aria-label="View all saved words"><span class="material-icons">format_list_bulleted</span></button>
+    <div class="headBtns">
+      <button class="iconBtn allBtn" aria-label="View all saved words">${ICON_LIST}</button>
+      <button class="iconBtn settingsBtn" aria-label="Settings">${ICON_SETTINGS}</button>
+    </div>
   `;
   header.querySelector(".label")!.textContent = `${weekWords.length} saved this week`;
-  header.querySelector(".iconBtn")!.addEventListener("click", () => goTo("allWords"));
+  header.querySelector(".allBtn")!.addEventListener("click", () => goTo("allWords"));
+  header.querySelector(".settingsBtn")!.addEventListener("click", () => chrome.runtime.openOptionsPage());
   panel.appendChild(header);
 
   const sectionLabel = document.createElement("div");
   sectionLabel.className = "label section";
   sectionLabel.textContent = "This week";
-  panel.appendChild(sectionLabel);
 
+  // the section label lives inside the scrolling list so it sits on the same ruled grid as the rows
   const list = document.createElement("div");
   list.className = "list";
+  list.appendChild(sectionLabel);
   if (weekWords.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty";
@@ -120,8 +179,8 @@ function renderLibrary(all: CompactWordRecord[]): HTMLDivElement {
   const footer = document.createElement("div");
   footer.className = "footer";
   footer.innerHTML = `
-    <button class="pillBtn searchBtn"><span class="material-icons">search</span>Search</button>
-    <button class="pillBtn saveBtn"><span class="material-icons">add</span>Save a word</button>
+    <button class="pillBtn searchBtn">${ICON_SEARCH}Search</button>
+    <button class="pillBtn saveBtn">${ICON_PLUS}Save a word</button>
   `;
   footer.querySelector(".searchBtn")!.addEventListener("click", () => {
     searchQuery = "";
@@ -141,8 +200,8 @@ function renderSearch(all: CompactWordRecord[]): HTMLDivElement {
   const body = document.createElement("div");
   body.className = "body";
   body.innerHTML = `
-    <input placeholder="Search your words..." />
-    <div class="label section" style="margin-left:0;"></div>
+    <input class="tall" placeholder="Search your words..." />
+    <div class="label section"></div>
     <div class="list"></div>
   `;
   panel.appendChild(body);
@@ -184,13 +243,13 @@ function renderSave(): HTMLDivElement {
   const body = document.createElement("div");
   body.className = "body";
   body.innerHTML = `
-    <div class="label section" style="margin-left:0;">New word</div>
+    <div class="label section">New word</div>
     <input placeholder="Type a word..." />
     <button class="primaryBtn">${ICON_BOOK}Add to my library</button>
     <div class="err"></div>
     <div class="success" hidden></div>
     <div class="preview" hidden>
-      <div class="label section" style="margin-left:0;">Preview</div>
+      <div class="label section">Preview</div>
       <div class="pword"></div>
       <div class="ppron"></div>
       <div class="pmeaning"></div>
@@ -352,7 +411,7 @@ function renderAllWords(all: CompactWordRecord[]): HTMLDivElement {
     if (week.length > 0) {
       const label = document.createElement("div");
       label.className = "label";
-      label.style.margin = "0 0 8px";
+      label.className = "label section";
       label.textContent = "This week";
       body.appendChild(label);
       for (const w of week) body.appendChild(wordRow(w));
@@ -360,7 +419,7 @@ function renderAllWords(all: CompactWordRecord[]): HTMLDivElement {
     if (earlier.length > 0) {
       const label = document.createElement("div");
       label.className = "label";
-      label.style.margin = week.length > 0 ? "16px 0 8px" : "0 0 8px";
+      label.className = "label section";
       label.textContent = "Earlier";
       body.appendChild(label);
       for (const w of earlier) body.appendChild(wordRow(w));
@@ -369,7 +428,7 @@ function renderAllWords(all: CompactWordRecord[]): HTMLDivElement {
 
   const footer = document.createElement("div");
   footer.className = "footer";
-  footer.innerHTML = `<button class="pillBtn quizBtn"><span class="material-icons">school</span>Quiz me</button>`;
+  footer.innerHTML = `<button class="pillBtn quizBtn">${ICON_SCHOOL}Quiz me</button>`;
   footer.querySelector(".quizBtn")!.addEventListener("click", () => goTo("quiz"));
   panel.appendChild(footer);
 
@@ -397,6 +456,7 @@ function renderQuiz(all: CompactWordRecord[]): HTMLDivElement {
   const card = document.createElement("div");
   card.className = "quizCard";
   card.innerHTML = `
+    <div class="label section prompt">Do you know this word?</div>
     <div class="word"></div>
     <button class="pillBtn revealBtn">Reveal meaning</button>
     <div class="meaning" hidden></div>

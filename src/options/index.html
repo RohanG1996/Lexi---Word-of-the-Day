@@ -3,24 +3,56 @@
   <head>
     <meta charset="utf-8" />
     <title>Lexi settings</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=Manrope:wght@400;500;600&display=swap"
+    />
     <style>
-      body { font-family: sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
-      input, select, button { padding: 8px; font-size: 14px; }
-      input, select { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
-      label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
-      .err { color: #a33; font-size: 13px; }
-      .ok { color: #2a7; font-size: 13px; }
+      :root {
+        --paper: #f7f3ea; --page: #e9e4d6; --border: #d8d3c9; --ink: #171717; --ink-2: #45423e; --muted: #66615a;
+        --rule: rgba(110, 155, 215, 0.5); --margin: rgba(214, 100, 96, 0.7); --cta: rgba(110, 155, 215, 0.9);
+        --success: #4f7053; --error: #a33333;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; padding: 64px 16px;
+        background: var(--page); color: var(--ink); font-family: "Manrope", -apple-system, "Segoe UI", Roboto, sans-serif; }
+      /* ruled-paper card: rules every 49px starting at y=97, red margin line at x=40 */
+      .card { position: relative; width: 100%; max-width: 680px; padding: 44px 44px 44px 76px; background: var(--paper);
+        border: 1px solid var(--border); border-radius: 13px; box-shadow: 0 12px 30px rgba(0,0,0,0.12); overflow: hidden; }
+      .card::before { content: ""; position: absolute; left: 0; right: 0; top: 49px; bottom: 0; pointer-events: none;
+        background: repeating-linear-gradient(to bottom, transparent 0 48px, var(--rule) 48px 49px); }
+      .card::after { content: ""; position: absolute; top: 0; bottom: 0; left: 40px; width: 1.5px; background: var(--margin); pointer-events: none; }
+      .card > * { position: relative; }
+      h1 { margin: 0; font-family: "Cormorant Garamond", Georgia, serif; font-size: 48px; line-height: 52px; font-weight: 500; letter-spacing: -0.01em; }
+      p.intro { margin: 4px 0 26px; max-width: 500px; font-size: 15px; line-height: 24px; color: var(--ink-2); }
+      label { display: block; margin: 0 0 8px; font-size: 13px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+      input, select { display: block; width: 100%; height: 46px; margin: 0 0 20px; padding: 0 16px; font: inherit; font-size: 15px; color: var(--ink);
+        background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+      input { border: 1.5px solid var(--cta); }
+      select { appearance: none; -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2366615a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6,9 12,15 18,9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 14px center; }
+      input:focus-visible, select:focus-visible, button:focus-visible { outline: 1.5px solid #77736c; outline-offset: 2px; }
+      button { margin-top: 6px; padding: 16px 34px; font: inherit; font-size: 17px; color: var(--ink); background: var(--paper);
+        border: 1.5px solid var(--cta); border-radius: 12px; cursor: pointer; }
+      button:hover { background: #f1ebdd; }
+      #status { margin-top: 24px; font-size: 13px; line-height: 20px; }
+      #status:empty { display: none; }
+      .err { color: var(--error); }
+      .ok { color: var(--success); font-weight: 600; }
     </style>
   </head>
   <body>
-    <h1>Lexi settings</h1>
-    <p>Pick a model provider and paste its API key. The key is stored only on this device and is never synced.</p>
-    <label for="provider">Provider</label>
-    <select id="provider"></select>
-    <label for="apiKey">API key</label>
-    <input id="apiKey" type="password" placeholder="" />
-    <button id="save">Save</button>
-    <div id="status"></div>
+    <main class="card">
+      <h1>Lexi settings</h1>
+      <p class="intro">Pick a model provider and paste its API key. The key is stored only on this device and is never synced.</p>
+      <label for="provider">Provider</label>
+      <select id="provider"></select>
+      <label for="apiKey">API key</label>
+      <input id="apiKey" type="password" placeholder="" />
+      <button id="save">Save</button>
+      <div id="status"></div>
+    </main>
     <script src="options.js"></script>
   </body>
 </html>
