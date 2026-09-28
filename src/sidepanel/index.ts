@@ -6,7 +6,16 @@ import { addWord } from "../lib/addWord";
 import { filterWords } from "./search";
 import { pickNextQuizWord } from "./quiz";
 import type { CompactWordRecord } from "../lib/types";
-import { ICON_BOOK, ICON_CLOSE_THIN, ICON_BACK, ICON_LIST, ICON_SEARCH, ICON_PLUS, ICON_SCHOOL } from "../lib/icons";
+import {
+  ICON_BOOK,
+  ICON_BACK,
+  ICON_LIST,
+  ICON_SEARCH,
+  ICON_PLUS,
+  ICON_SCHOOL,
+  ICON_SETTINGS,
+  ICON_CHEVRON_DOWN,
+} from "../lib/icons";
 
 const wordStore = createWordStore(chrome.storage.sync);
 const detailCache = createDetailCache(chrome.storage.local);
@@ -52,18 +61,64 @@ function goTo(next: View): void {
   render();
 }
 
+// A saved word is an accordion: one click on the row shows the pronunciation, full meaning and example (read
+// lazily from the local detail cache, falling back to the short meaning). Opening one row closes any other.
 function wordRow(w: CompactWordRecord): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "row";
   row.innerHTML = `
-    <div><div class="word"></div><div class="meaning"></div></div>
-    <button class="del" aria-label="Remove ${w.word}">${ICON_CLOSE_THIN}</button>
+    <button class="rowHead" aria-expanded="false">
+      <div class="rowText"><div class="word"></div><div class="meaning"></div></div>
+      <span class="chev" aria-hidden="true">${ICON_CHEVRON_DOWN}</span>
+    </button>
+    <div class="rowBody" hidden></div>
   `;
   row.querySelector(".word")!.textContent = w.word;
   row.querySelector(".meaning")!.textContent = w.shortMeaning;
-  row.querySelector(".del")!.addEventListener("click", async () => {
-    await wordStore.deleteWord(w.word);
-    render();
+
+  const head = row.querySelector(".rowHead") as HTMLButtonElement;
+  const body = row.querySelector(".rowBody") as HTMLDivElement;
+  let loaded = false;
+
+  async function fillBody(): Promise<void> {
+    const detail = await detailCache.getDetail(w.word);
+    const hasPron = Boolean(detail?.pronunciation || detail?.partOfSpeech);
+    const hasExample = Boolean(detail?.example);
+    body.innerHTML = `
+      <div class="pron" ${hasPron ? "" : "hidden"}></div>
+      <div class="full"></div>
+      <div class="exBox" ${hasExample ? "" : "hidden"}>
+        <div class="exLabel">Example</div>
+        <div class="ex"></div>
+      </div>
+    `;
+    const pron = body.querySelector(".pron") as HTMLDivElement;
+    pron.textContent = detail?.pronunciation ?? "";
+    if (detail?.partOfSpeech) {
+      const pos = document.createElement("i");
+      pos.textContent = detail.partOfSpeech;
+      pron.appendChild(pos);
+    }
+    body.querySelector(".full")!.textContent = detail?.meaning || w.shortMeaning;
+    body.querySelector(".ex")!.textContent = detail?.example ?? "";
+  }
+
+  head.addEventListener("click", async () => {
+    const opening = !row.classList.contains("open");
+    if (opening) {
+      for (const other of app.querySelectorAll<HTMLElement>(".row.open")) {
+        other.classList.remove("open");
+        other.querySelector(".rowHead")!.setAttribute("aria-expanded", "false");
+        (other.querySelector(".rowBody") as HTMLElement).hidden = true;
+      }
+      if (!loaded) {
+        loaded = true;
+        await fillBody();
+      }
+    }
+    row.classList.toggle("open", opening);
+    head.setAttribute("aria-expanded", String(opening));
+    body.hidden = !opening;
   });
   return row;
 }
@@ -93,10 +148,14 @@ function renderLibrary(all: CompactWordRecord[]): HTMLDivElement {
       <div class="name">Your Library</div>
       <div class="label"></div>
     </div>
-    <button class="iconBtn" aria-label="View all saved words">${ICON_LIST}</button>
+    <div class="headBtns">
+      <button class="iconBtn allBtn" aria-label="View all saved words">${ICON_LIST}</button>
+      <button class="iconBtn settingsBtn" aria-label="Settings">${ICON_SETTINGS}</button>
+    </div>
   `;
   header.querySelector(".label")!.textContent = `${weekWords.length} saved this week`;
-  header.querySelector(".iconBtn")!.addEventListener("click", () => goTo("allWords"));
+  header.querySelector(".allBtn")!.addEventListener("click", () => goTo("allWords"));
+  header.querySelector(".settingsBtn")!.addEventListener("click", () => chrome.runtime.openOptionsPage());
   panel.appendChild(header);
 
   const sectionLabel = document.createElement("div");

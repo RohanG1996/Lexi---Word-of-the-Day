@@ -8,15 +8,15 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,500&family=Manrope:wght@400;500;600&display=swap"
     />
     <style>
-      /* Ruled-paper grid: every row is a multiple of 49px, rules sit on the last pixel of a row,
-         and a red margin line runs down the left at x=40. Matches the widget card. */
+      /* Side panel, final design: ivory paper, soft blue horizontal lines (same as the widget card), solid darker-ivory
+         buttons with no outline, and accordion words with a boxed example. No margin line, no ruled background. */
       :root {
         --paper: #f7f3ea; --border: #d8d3c9; --ink: #171717; --ink-2: #45423e; --ink-body: #242424; --ink-quote: #4a4742;
-        --label: #252525; --muted: #66615a; --rule: rgba(110, 155, 215, 0.5); --margin: rgba(214, 100, 96, 0.7);
+        --label: #252525; --muted: #66615a; --rule: rgba(110, 155, 215, 0.3); --btn: #ede6d4; --btn-hover: #e6dec9;
         --cta: rgba(110, 155, 215, 0.9); --success: #4f7053; --error: #a33333;
         --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
         --sans: "Manrope", -apple-system, "Segoe UI", Roboto, sans-serif;
-        --grid: 49px;
+        --pad: 18px;
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; height: 100%; }
@@ -27,85 +27,90 @@
       svg { display: block; }
 
       #app, .panel { display: flex; flex-direction: column; height: 100vh; }
-      .panel { position: relative; overflow: hidden; }
-      .panel::after { content: ""; position: absolute; top: 0; bottom: 0; left: 40px; width: 1.5px; background: var(--margin); pointer-events: none; }
 
-      /* headers: 98px = two grid rows, rule on the last pixel */
-      .header, .subHeader {
-        flex: none; height: calc(var(--grid) * 2); display: flex; align-items: center; padding: 0 22px 0 58px;
-        border-bottom: 1px solid var(--rule);
-      }
+      .header, .subHeader { flex: none; height: 84px; display: flex; align-items: center; padding: 0 var(--pad); border-bottom: 1px solid var(--rule); }
       .header { justify-content: space-between; gap: 12px; }
       .who { min-width: 0; }
-      .name { font-family: var(--serif); font-size: 34px; line-height: 36px; font-weight: 500; }
-      .label {
-        font-family: var(--sans); font-size: 13px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
-      }
+      .name { font-family: var(--serif); font-size: 28px; line-height: 30px; font-weight: 500; }
+      .label { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
       .who .label { margin-top: 4px; }
-      .subHeader { gap: 14px; }
-      .subHeader .title { font-family: var(--serif); font-size: 30px; line-height: 34px; font-weight: 500; }
+      .headBtns { display: flex; gap: 8px; flex: none; }
+      .subHeader { gap: 12px; }
+      .subHeader .title { font-family: var(--serif); font-size: 26px; line-height: 30px; font-weight: 500; }
       .subHeader .label { margin-left: auto; }
-      .subHeader .iconBtn.back { width: auto; height: auto; border: none; border-radius: 0; color: var(--label); }
-      .subHeader .iconBtn.back svg { width: 22px; height: 22px; }
 
+      /* solid buttons: darker shade of the panel background, no outline */
       .iconBtn {
-        flex: none; width: 44px; height: 44px; border-radius: 12px; border: 1.5px solid var(--cta); background: var(--paper);
-        display: flex; align-items: center; justify-content: center; color: var(--ink);
+        flex: none; width: 40px; height: 40px; border-radius: 10px; background: var(--btn); color: var(--ink);
+        display: flex; align-items: center; justify-content: center;
       }
-      .iconBtn svg { width: 20px; height: 20px; }
+      .iconBtn svg { width: 18px; height: 18px; }
+      .iconBtn.back { width: auto; height: auto; background: none; border-radius: 0; color: var(--label); }
+      .iconBtn.back svg { width: 20px; height: 20px; }
+      .iconBtn:hover, .pillBtn:hover, .primaryBtn:hover { background: var(--btn-hover); }
+      .iconBtn.back:hover { background: none; opacity: 0.6; }
 
-      /* scrolling area carries the rules; local attachment keeps them locked to the rows */
-      .list, .body {
-        flex: 1; overflow-y: auto;
-        background: linear-gradient(to bottom, transparent calc(var(--grid) - 1px), var(--rule) calc(var(--grid) - 1px)) 0 0 / 100% var(--grid) local;
-      }
-      .body .list { flex: none; overflow: visible; background: none; padding: 0; }
-      .label.section { height: var(--grid); display: flex; align-items: center; margin: 0; padding: 0 22px 0 58px; }
+      .list, .body { flex: 1; overflow-y: auto; }
+      .body .list { flex: none; overflow: visible; }
+      .label.section { padding: 16px var(--pad) 8px; margin: 0; }
 
-      .row { height: var(--grid); padding: 0 22px 1px 58px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-      .row > div { min-width: 0; }
-      .row .word { font-family: var(--serif); font-size: 24px; line-height: 26px; font-weight: 500; }
-      .row .meaning { font-size: 13px; line-height: 15px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .row .del { flex: none; display: flex; color: var(--muted); }
-      .row .del svg { width: 18px; height: 18px; }
-      .empty { height: var(--grid); padding: 0 22px 0 58px; display: flex; align-items: center; font-size: 14px; color: var(--muted); }
+      /* accordion word rows: one click opens the word; the open row keeps the panel's own background */
+      .row { border-bottom: 1px solid var(--rule); }
+      .rowHead { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px var(--pad); text-align: left; }
+      .rowText { min-width: 0; flex: 1; }
+      .row .word { font-family: var(--serif); font-size: 20px; line-height: 24px; font-weight: 500; }
+      .row .meaning { margin-top: 1px; font-size: 12px; line-height: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .row.open .meaning { display: none; }
+      .chev { flex: none; color: var(--muted); transition: transform 0.2s ease; }
+      .chev svg { width: 16px; height: 16px; }
+      .row.open .chev { transform: rotate(180deg); }
+      .rowBody { padding: 0 var(--pad) 14px; }
+      .rowBody .pron { font-family: var(--serif); font-size: 15px; letter-spacing: 0.05em; color: var(--ink-2); }
+      .rowBody .pron i { margin-left: 10px; }
+      .rowBody .full { margin-top: 8px; font-family: var(--serif); font-size: 16px; line-height: 22px; font-weight: 500; letter-spacing: 0.01em; color: var(--ink-body); }
+      /* the example sits in a box (darker shade of the background) with its title inside */
+      .rowBody .exBox { margin-top: 20px; padding: 10px 14px 12px; background: var(--btn); border-radius: 8px; }
+      .rowBody .exLabel { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+      .rowBody .ex { margin-top: 6px; font-family: var(--serif); font-size: 15px; line-height: 22px; font-style: italic; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-quote); }
+      .empty { color: var(--muted); font-size: 13px; padding: 12px var(--pad); }
 
-      .footer { flex: none; height: calc(var(--grid) * 2); padding: 0 22px 0 58px; display: flex; align-items: center; gap: 12px; background: var(--paper); }
+      .footer { flex: none; height: 84px; padding: 0 var(--pad); border-top: 1px solid var(--rule); display: flex; align-items: center; gap: 12px; }
       .pillBtn {
-        flex: 1; height: 52px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 16px; font-weight: 400;
-        color: var(--ink); background: var(--paper); border: 1.5px solid var(--cta); border-radius: 12px; padding: 0 20px;
+        flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; white-space: nowrap;
+        font-size: 14px; font-weight: 500; color: #2b2822; background: var(--btn); border-radius: 10px;
       }
-      .pillBtn:hover, .primaryBtn:hover, .iconBtn:hover { background: #f1ebdd; }
-      .pillBtn svg { width: 20px; height: 20px; }
+      .pillBtn svg { width: 18px; height: 18px; }
 
       input {
-        display: block; width: calc(100% - 80px); height: 43px; margin: 3px 22px 3px 58px; padding: 0 16px; font-family: var(--sans); font-size: 15px;
+        display: block; width: calc(100% - var(--pad) * 2); height: 42px; margin: 8px var(--pad) 0; padding: 0 14px; font-family: var(--sans); font-size: 14px;
         border: 1.5px solid var(--cta); border-radius: 10px; background: #fff; color: var(--ink);
       }
       input::placeholder { color: var(--muted); }
-      input.tall { margin: 24px 22px 31px 58px; }
+      input.tall { margin: 18px var(--pad) 4px; }
 
       .primaryBtn {
-        width: calc(100% - 80px); height: 56px; margin: 21px 22px 21px 58px; display: flex; align-items: center; justify-content: center; gap: 12px;
-        font-size: 17px; font-weight: 400; color: var(--ink); background: var(--paper); border: 1.5px solid var(--cta); border-radius: 12px;
+        width: calc(100% - var(--pad) * 2); height: 46px; margin: 14px var(--pad) 8px; display: flex; align-items: center; justify-content: center; gap: 10px;
+        font-size: 15px; font-weight: 500; color: #2b2822; background: var(--btn); border-radius: 10px;
       }
-      .primaryBtn svg { width: 21px; height: 21px; }
-      .err, .success { min-height: var(--grid); display: flex; align-items: center; padding: 0 22px 0 58px; font-size: 13px; }
+      .primaryBtn svg { width: 19px; height: 19px; }
+      .err, .success { margin: 4px var(--pad) 8px; font-size: 12px; }
       .err { color: var(--error); }
       .err:empty { display: none; }
       .success { color: var(--success); font-weight: 600; }
 
-      .preview .pword { height: var(--grid); display: flex; align-items: center; padding: 0 22px 0 58px; font-family: var(--serif); font-size: 38px; font-weight: 500; }
-      .preview .ppron { height: var(--grid); display: flex; align-items: center; padding: 0 22px 0 58px; font-family: var(--serif); font-size: 18px; letter-spacing: 0.05em; color: var(--ink-2); }
-      .preview .pmeaning { min-height: calc(var(--grid) * 2); display: flex; align-items: center; padding: 0 22px 0 58px; font-family: var(--serif); font-size: 22px; line-height: 30px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-body); }
-      .preview .pexample { min-height: calc(var(--grid) * 2); display: flex; align-items: center; padding: 0 22px 0 58px; font-family: var(--serif); font-size: 19px; line-height: 28px; font-style: italic; font-weight: 500; letter-spacing: 0.03em; color: var(--ink-quote); }
+      .preview { margin: 14px var(--pad) 0; padding-top: 6px; border-top: 1px solid var(--rule); }
+      .preview .label.section { padding: 12px 0 6px; }
+      .preview .pword { font-family: var(--serif); font-size: 32px; line-height: 36px; font-weight: 500; }
+      .preview .ppron { margin-top: 4px; font-family: var(--serif); font-size: 16px; letter-spacing: 0.05em; color: var(--ink-2); }
+      .preview .pmeaning { margin-top: 12px; font-family: var(--serif); font-size: 18px; line-height: 26px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-body); }
+      .preview .pexample { margin-top: 10px; font-family: var(--serif); font-size: 15px; line-height: 22px; font-style: italic; font-weight: 500; letter-spacing: 0.03em; color: var(--ink-quote); }
 
-      .quizCard { text-align: center; padding-top: calc(var(--grid) * 3); }
-      .quizCard .prompt { justify-content: center; }
-      .quizCard .word { height: calc(var(--grid) * 2); display: flex; align-items: center; justify-content: center; padding: 0 22px 0 58px; font-family: var(--serif); font-size: 52px; line-height: 56px; letter-spacing: -0.01em; font-weight: 500; }
-      .quizCard .revealBtn { flex: none; width: 240px; margin: 23px auto 23px calc(58px + (100% - 80px - 240px) / 2); }
-      .quizCard .meaning { min-height: calc(var(--grid) * 2); display: flex; align-items: center; justify-content: center; padding: 0 22px 0 58px; font-family: var(--serif); font-size: 24px; line-height: 32px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-body); }
-      .quizActions { height: calc(var(--grid) * 2); display: flex; align-items: center; gap: 12px; padding: 0 22px 0 58px; }
+      .quizCard { text-align: center; padding: 56px var(--pad) 24px; }
+      .quizCard .prompt { padding: 0 0 12px; }
+      .quizCard .word { font-family: var(--serif); font-size: 48px; line-height: 52px; letter-spacing: -0.01em; font-weight: 500; margin-bottom: 22px; }
+      .quizCard .revealBtn { flex: none; width: 240px; margin: 0 auto; }
+      .quizCard .meaning { font-family: var(--serif); font-size: 22px; line-height: 30px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-body); margin-bottom: 22px; }
+      .quizActions { display: flex; gap: 12px; }
     </style>
   </head>
   <body>
