@@ -3,37 +3,38 @@ import { createDetailCache } from "../lib/cache";
 import { createApiKeyStore } from "../lib/apiKey";
 import { createModelClient } from "../lib/modelClient";
 import { addWord } from "../lib/addWord";
-import { filterWords } from "./search";
-import { pickNextQuizWord } from "./quiz";
+import { OTHER_TOPIC, type WordExplanation } from "../lib/prompts";
+import { ALL_TOPICS, searchWords, topicChips } from "./search";
 import type { CompactWordRecord } from "../lib/types";
 import {
   ICON_BOOK,
   ICON_BACK,
-  ICON_LIST,
   ICON_SEARCH,
   ICON_PLUS,
-  ICON_SCHOOL,
   ICON_SETTINGS,
   ICON_CHEVRON_DOWN,
+  ICON_CLOSE_THIN,
 } from "../lib/icons";
 
 const wordStore = createWordStore(chrome.storage.sync);
 const detailCache = createDetailCache(chrome.storage.local);
 const today = () => new Date().toISOString().slice(0, 10);
 
-type View = "library" | "search" | "save" | "allWords" | "quiz";
+// Library -> Search (search + browsing by topic, replacing the old "All saved words" list) or Add a word.
+type View = "library" | "search" | "save";
 
 let view: View = "library";
 let searchQuery = "";
+let searchTopic = ALL_TOPICS;
 
 const app = document.getElementById("app") as HTMLDivElement;
 
 // Saving a word from the content-script highlight popover (or the widget)
 // writes to this same chrome.storage.sync key from a different context - keep
-// the library/search/all-words views live instead of requiring a re-open.
+// the library and search views live instead of requiring a re-open.
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "sync" || !changes["lexi.words"]) return;
-  if (view === "library" || view === "allWords" || view === "search") render();
+  if (view === "library" || view === "search") render();
 });
 
 function daysAgo(days: number): Date {
@@ -51,9 +52,7 @@ async function render(): Promise<void> {
   app.innerHTML = "";
   if (view === "library") app.appendChild(renderLibrary(all));
   else if (view === "search") app.appendChild(renderSearch(all));
-  else if (view === "save") app.appendChild(renderSave());
-  else if (view === "allWords") app.appendChild(renderAllWords(all));
-  else app.appendChild(renderQuiz(all));
+  else app.appendChild(renderSave());
 }
 
 function goTo(next: View): void {
@@ -63,7 +62,7 @@ function goTo(next: View): void {
 
 // A saved word is an accordion: one click on the row shows the pronunciation, full meaning and example (read
 // lazily from the local detail cache, falling back to the short meaning). Opening one row closes any other.
-function wordRow(w: CompactWordRecord): HTMLDivElement {
+function wordRow(w: CompactWordRecord, highlight = ""): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "row";
   row.innerHTML = `
@@ -73,7 +72,15 @@ function wordRow(w: CompactWordRecord): HTMLDivElement {
     </button>
     <div class="rowBody" hidden></div>
   `;
-  row.querySelector(".word")!.textContent = w.word;
+  const wordEl = row.querySelector(".word") as HTMLElement;
+  const q = highlight.trim();
+  if (q && w.word.toLowerCase().startsWith(q.toLowerCase())) {
+    const bold = document.createElement("b");
+    bold.textContent = w.word.slice(0, q.length);
+    wordEl.append(bold, w.word.slice(q.length));
+  } else {
+    wordEl.textContent = w.word;
+  }
   row.querySelector(".meaning")!.textContent = w.shortMeaning;
 
   const head = row.querySelector(".rowHead") as HTMLButtonElement;
@@ -149,12 +156,10 @@ function renderLibrary(all: CompactWordRecord[]): HTMLDivElement {
       <div class="label"></div>
     </div>
     <div class="headBtns">
-      <button class="iconBtn allBtn" aria-label="View all saved words">${ICON_LIST}</button>
       <button class="iconBtn settingsBtn" aria-label="Settings">${ICON_SETTINGS}</button>
     </div>
   `;
   header.querySelector(".label")!.textContent = `${weekWords.length} saved this week`;
-  header.querySelector(".allBtn")!.addEventListener("click", () => goTo("allWords"));
   header.querySelector(".settingsBtn")!.addEventListener("click", () => chrome.runtime.openOptionsPage());
   panel.appendChild(header);
 
@@ -162,7 +167,6 @@ function renderLibrary(all: CompactWordRecord[]): HTMLDivElement {
   sectionLabel.className = "label section";
   sectionLabel.textContent = "This week";
 
-  // the section label lives inside the scrolling list so it sits on the same ruled grid as the rows
   const list = document.createElement("div");
   list.className = "list";
   list.appendChild(sectionLabel);
@@ -180,10 +184,11 @@ function renderLibrary(all: CompactWordRecord[]): HTMLDivElement {
   footer.className = "footer";
   footer.innerHTML = `
     <button class="pillBtn searchBtn">${ICON_SEARCH}Search</button>
-    <button class="pillBtn saveBtn">${ICON_PLUS}Save a word</button>
+    <button class="pillBtn saveBtn">${ICON_PLUS}Add a word</button>
   `;
   footer.querySelector(".searchBtn")!.addEventListener("click", () => {
     searchQuery = "";
+    searchTopic = ALL_TOPICS;
     goTo("search");
   });
   footer.querySelector(".saveBtn")!.addEventListener("click", () => goTo("save"));
@@ -192,49 +197,114 @@ function renderLibrary(all: CompactWordRecord[]): HTMLDivElement {
   return panel;
 }
 
+// Search combines the old search and "All saved words": a search field, filter chips that auto-categorise the
+// library by topic, and one list. With All selected the list is flat; picking a chip shows that topic under its title.
 function renderSearch(all: CompactWordRecord[]): HTMLDivElement {
   const panel = document.createElement("div");
   panel.className = "panel";
-  panel.appendChild(backHeader("Search your words"));
+
+  const header = backHeader("Search");
+  const total = document.createElement("div");
+  total.className = "label";
+  total.textContent = `${all.length} ${all.length === 1 ? "word" : "words"}`;
+  header.appendChild(total);
+  panel.appendChild(header);
+
+  const chips = topicChips(all);
+  if (searchTopic !== ALL_TOPICS && !chips.some((c) => c.topic === searchTopic)) searchTopic = ALL_TOPICS;
 
   const body = document.createElement("div");
   body.className = "body";
   body.innerHTML = `
-    <input class="tall" placeholder="Search your words..." />
-    <div class="label section"></div>
-    <div class="list"></div>
+    <div class="searchWrap">
+      <label class="searchField">
+        <span class="sIcon">${ICON_SEARCH}</span>
+        <input class="sInput" type="text" placeholder="Search words, meanings, topics" aria-label="Search your words" />
+        <button class="clearBtn" aria-label="Clear search" hidden>${ICON_CLOSE_THIN}</button>
+      </label>
+      <div class="chips"></div>
+    </div>
+    <div class="results"></div>
   `;
   panel.appendChild(body);
 
-  const input = body.querySelector("input") as HTMLInputElement;
-  const countLabel = body.querySelector(".label") as HTMLDivElement;
-  const list = body.querySelector(".list") as HTMLDivElement;
+  const input = body.querySelector(".sInput") as HTMLInputElement;
+  const clearBtn = body.querySelector(".clearBtn") as HTMLButtonElement;
+  const chipsEl = body.querySelector(".chips") as HTMLDivElement;
+  const results = body.querySelector(".results") as HTMLDivElement;
   input.value = searchQuery;
 
-  function renderMatches(): void {
-    const matches = filterWords(all, input.value);
-    countLabel.textContent = matches.length === 1 ? "1 match" : `${matches.length} matches`;
-    list.innerHTML = "";
+  function renderChips(): void {
+    chipsEl.innerHTML = "";
+    const all_ = [{ topic: ALL_TOPICS, count: all.length }, ...chips];
+    for (const c of all_) {
+      const btn = document.createElement("button");
+      btn.className = "chip" + (c.topic === searchTopic ? " active" : "");
+      btn.setAttribute("aria-pressed", String(c.topic === searchTopic));
+      const label = document.createElement("span");
+      label.textContent = c.topic;
+      const n = document.createElement("span");
+      n.className = "n";
+      n.textContent = String(c.count);
+      btn.append(label, n);
+      btn.addEventListener("click", () => {
+        searchTopic = c.topic;
+        renderChips();
+        renderResults();
+      });
+      chipsEl.appendChild(btn);
+    }
+  }
+
+  function renderResults(): void {
+    const matches = searchWords(all, searchQuery, searchTopic);
+    results.innerHTML = "";
+    results.classList.toggle("titled", searchTopic !== ALL_TOPICS);
+    if (all.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "No saved words yet.";
+      results.appendChild(empty);
+      return;
+    }
     if (matches.length === 0) {
       const empty = document.createElement("div");
       empty.className = "empty";
       empty.textContent = "No words match.";
-      list.appendChild(empty);
+      results.appendChild(empty);
       return;
     }
-    for (const w of matches) list.appendChild(wordRow(w));
+    if (searchTopic !== ALL_TOPICS) {
+      const title = document.createElement("div");
+      title.className = "label section";
+      title.textContent = `${searchTopic} · ${matches.length}`;
+      results.appendChild(title);
+    }
+    for (const w of matches) results.appendChild(wordRow(w, searchQuery));
   }
 
   input.addEventListener("input", () => {
     searchQuery = input.value;
-    renderMatches();
+    clearBtn.hidden = !searchQuery;
+    renderResults();
   });
-  renderMatches();
+  clearBtn.addEventListener("click", () => {
+    searchQuery = "";
+    input.value = "";
+    clearBtn.hidden = true;
+    renderResults();
+    input.focus();
+  });
+  clearBtn.hidden = !searchQuery;
+  renderChips();
+  renderResults();
   queueMicrotask(() => input.focus());
 
   return panel;
 }
 
+// Add a word: type a word, read its preview, then add it - the button appears below the preview, only once
+// there is a preview to add.
 function renderSave(): HTMLDivElement {
   const panel = document.createElement("div");
   panel.className = "panel";
@@ -245,9 +315,7 @@ function renderSave(): HTMLDivElement {
   body.innerHTML = `
     <div class="label section">New word</div>
     <input placeholder="Type a word..." />
-    <button class="primaryBtn">${ICON_BOOK}Add to my library</button>
     <div class="err"></div>
-    <div class="success" hidden></div>
     <div class="preview" hidden>
       <div class="label section">Preview</div>
       <div class="pword"></div>
@@ -255,6 +323,8 @@ function renderSave(): HTMLDivElement {
       <div class="pmeaning"></div>
       <div class="pexample"></div>
     </div>
+    <button class="primaryBtn" hidden>${ICON_BOOK}Add to my library</button>
+    <div class="success" hidden></div>
   `;
   panel.appendChild(body);
 
@@ -265,22 +335,27 @@ function renderSave(): HTMLDivElement {
   const preview = body.querySelector(".preview") as HTMLDivElement;
 
   let previewWord: string | null = null;
-  let previewExplanation: { meaning: string; example: string; pronunciation: string; partOfSpeech: string } | null =
-    null;
+  let previewExplanation: WordExplanation | null = null;
   let previewTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function showPreview(word: string, e: { meaning: string; example: string; pronunciation: string; partOfSpeech: string }): void {
+  function showPreview(word: string, e: Pick<WordExplanation, "meaning" | "example" | "pronunciation" | "partOfSpeech">): void {
     preview.hidden = false;
+    addBtn.hidden = false;
     preview.querySelector(".pword")!.textContent = word;
     preview.querySelector(".ppron")!.textContent = [e.pronunciation, e.partOfSpeech].filter(Boolean).join("  ·  ");
     preview.querySelector(".pmeaning")!.textContent = e.meaning;
     preview.querySelector(".pexample")!.textContent = e.example;
   }
 
+  function hidePreview(): void {
+    preview.hidden = true;
+    addBtn.hidden = true;
+  }
+
   async function loadPreview(): Promise<void> {
     const word = input.value.trim();
     if (word.length < 2) {
-      preview.hidden = true;
+      hidePreview();
       previewWord = null;
       previewExplanation = null;
       return;
@@ -290,7 +365,7 @@ function renderSave(): HTMLDivElement {
 
     const existing = (await wordStore.getAllWords()).find((w) => w.word.toLowerCase() === word.toLowerCase());
     try {
-      let explanation: { meaning: string; example: string; pronunciation: string; partOfSpeech: string };
+      let explanation: WordExplanation;
       if (existing) {
         const detail = await detailCache.getDetail(existing.word);
         explanation = {
@@ -298,6 +373,7 @@ function renderSave(): HTMLDivElement {
           example: detail?.example ?? "",
           pronunciation: detail?.pronunciation ?? "",
           partOfSpeech: detail?.partOfSpeech ?? "",
+          topic: existing.topic ?? OTHER_TOPIC,
         };
       } else {
         explanation = await createModelClient(settings.provider, settings.key).explainWord(word);
@@ -312,7 +388,7 @@ function renderSave(): HTMLDivElement {
   }
 
   input.addEventListener("input", () => {
-    preview.hidden = true;
+    hidePreview();
     successEl.hidden = true;
     previewWord = null;
     previewExplanation = null;
@@ -346,6 +422,7 @@ function renderSave(): HTMLDivElement {
             savedDate: today(),
             source: "manual",
             quizStats: { seen: 0, known: 0 },
+            topic: previewExplanation.topic,
           });
           await detailCache.setDetail({
             word,
@@ -369,6 +446,7 @@ function renderSave(): HTMLDivElement {
         pronunciation: detail?.pronunciation ?? "",
         partOfSpeech: detail?.partOfSpeech ?? "",
       });
+      addBtn.hidden = true; // already added - nothing more to press
       successEl.hidden = false;
       successEl.textContent = `${record.word} — added to your library`;
       input.value = "";
@@ -380,111 +458,6 @@ function renderSave(): HTMLDivElement {
   });
 
   queueMicrotask(() => input.focus());
-  return panel;
-}
-
-function renderAllWords(all: CompactWordRecord[]): HTMLDivElement {
-  const panel = document.createElement("div");
-  panel.className = "panel";
-
-  const header = backHeader("All saved words");
-  const total = document.createElement("div");
-  total.className = "label";
-  total.style.marginLeft = "auto";
-  total.textContent = `${all.length} total`;
-  header.appendChild(total);
-  panel.appendChild(header);
-
-  const body = document.createElement("div");
-  body.className = "body";
-  panel.appendChild(body);
-
-  if (all.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "No saved words yet.";
-    body.appendChild(empty);
-  } else {
-    const week = all.filter(isThisWeek);
-    const earlier = all.filter((w) => !isThisWeek(w));
-
-    if (week.length > 0) {
-      const label = document.createElement("div");
-      label.className = "label";
-      label.className = "label section";
-      label.textContent = "This week";
-      body.appendChild(label);
-      for (const w of week) body.appendChild(wordRow(w));
-    }
-    if (earlier.length > 0) {
-      const label = document.createElement("div");
-      label.className = "label";
-      label.className = "label section";
-      label.textContent = "Earlier";
-      body.appendChild(label);
-      for (const w of earlier) body.appendChild(wordRow(w));
-    }
-  }
-
-  const footer = document.createElement("div");
-  footer.className = "footer";
-  footer.innerHTML = `<button class="pillBtn quizBtn">${ICON_SCHOOL}Quiz me</button>`;
-  footer.querySelector(".quizBtn")!.addEventListener("click", () => goTo("quiz"));
-  panel.appendChild(footer);
-
-  return panel;
-}
-
-function renderQuiz(all: CompactWordRecord[]): HTMLDivElement {
-  const panel = document.createElement("div");
-  panel.className = "panel";
-  panel.appendChild(backHeader("Quiz me"));
-
-  const body = document.createElement("div");
-  body.className = "body";
-  panel.appendChild(body);
-
-  const next = pickNextQuizWord(all);
-  if (!next) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "No saved words yet.";
-    body.appendChild(empty);
-    return panel;
-  }
-
-  const card = document.createElement("div");
-  card.className = "quizCard";
-  card.innerHTML = `
-    <div class="label section prompt">Do you know this word?</div>
-    <div class="word"></div>
-    <button class="pillBtn revealBtn">Reveal meaning</button>
-    <div class="meaning" hidden></div>
-    <div class="quizActions" hidden>
-      <button class="pillBtn knewBtn">Knew it</button>
-      <button class="pillBtn didntBtn">Didn't know it</button>
-    </div>
-  `;
-  card.querySelector(".word")!.textContent = next.word;
-  const meaningEl = card.querySelector(".meaning") as HTMLDivElement;
-  meaningEl.textContent = next.shortMeaning;
-  const actions = card.querySelector(".quizActions") as HTMLDivElement;
-  const revealBtn = card.querySelector(".revealBtn") as HTMLButtonElement;
-
-  revealBtn.addEventListener("click", () => {
-    meaningEl.hidden = false;
-    actions.hidden = false;
-    revealBtn.hidden = true;
-  });
-
-  const rate = async (known: boolean) => {
-    await wordStore.updateQuizStats(next.word, known);
-    render();
-  };
-  card.querySelector(".knewBtn")!.addEventListener("click", () => rate(true));
-  card.querySelector(".didntBtn")!.addEventListener("click", () => rate(false));
-
-  body.appendChild(card);
   return panel;
 }
 

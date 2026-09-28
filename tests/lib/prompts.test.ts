@@ -4,6 +4,8 @@ import {
   parseExplainResponse,
   buildWordOfDayPrompt,
   parseWordOfDayResponse,
+  normaliseTopic,
+  TOPICS,
 } from "../../src/lib/prompts";
 
 describe("prompt builders and parsers", () => {
@@ -11,15 +13,21 @@ describe("prompt builders and parsers", () => {
     expect(buildExplainPrompt("ephemeral")).toContain("ephemeral");
   });
 
+  it("asks the model to pick a topic from the fixed list", () => {
+    const prompt = buildExplainPrompt("ephemeral");
+    for (const topic of TOPICS) expect(prompt).toContain(topic);
+  });
+
   it("parses a valid explain response", () => {
     const result = parseExplainResponse(
-      '{"meaning":"lasting a short time","example":"It was ephemeral.","pronunciation":"/əˈfem(ə)rəl/","partOfSpeech":"adjective"}'
+      '{"meaning":"lasting a short time","example":"It was ephemeral.","pronunciation":"/əˈfem(ə)rəl/","partOfSpeech":"adjective","topic":"Everyday"}'
     );
     expect(result).toEqual({
       meaning: "lasting a short time",
       example: "It was ephemeral.",
       pronunciation: "/əˈfem(ə)rəl/",
       partOfSpeech: "adjective",
+      topic: "Everyday",
     });
   });
 
@@ -30,7 +38,15 @@ describe("prompt builders and parsers", () => {
       example: "It was ephemeral.",
       pronunciation: "",
       partOfSpeech: "",
+      topic: "Other",
     });
+  });
+
+  it("normalises the topic to the fixed list and falls back to Other", () => {
+    expect(normaliseTopic("technology")).toBe("Technology");
+    expect(normaliseTopic(" Design ")).toBe("Design");
+    expect(normaliseTopic("astrology")).toBe("Other");
+    expect(normaliseTopic(undefined)).toBe("Other");
   });
 
   it("throws on a malformed explain response", () => {

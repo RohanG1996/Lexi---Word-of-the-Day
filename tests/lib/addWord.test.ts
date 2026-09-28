@@ -15,6 +15,7 @@ function makeDeps() {
       example: "It was ephemeral.",
       pronunciation: "/əˈfem(ə)rəl/",
       partOfSpeech: "adjective",
+      topic: "Everyday",
     }),
   };
   return { model, wordStore, detailCache, today: () => "2026-09-19" };
@@ -30,6 +31,7 @@ describe("addWord", () => {
     const record = await addWord(deps, "ephemeral");
     expect(record.shortMeaning).toBe("lasting a short time");
     expect(record.source).toBe("manual");
+    expect(record.topic).toBe("Everyday");
     expect(deps.model.explainWord).toHaveBeenCalledWith("ephemeral");
   });
 

@@ -41,6 +41,7 @@ export async function ensureTodayWord(deps: WordOfDayDeps): Promise<TodayWordRec
     savedDate: today,
     source: "daily",
     quizStats: { seen: 0, known: 0 },
+    topic: explanation.topic,
   });
   await deps.detailCache.setDetail({
     word,

@@ -18,6 +18,7 @@ function makeDeps(today: string) {
       example: "A lucid explanation.",
       pronunciation: "/ˈluːsɪd/",
       partOfSpeech: "adjective",
+      topic: "Everyday",
     }),
   };
   return {

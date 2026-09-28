@@ -12,7 +12,7 @@
          buttons with no outline, and accordion words with a boxed example. No margin line, no ruled background. */
       :root {
         --paper: #f7f3ea; --border: #d8d3c9; --ink: #171717; --ink-2: #45423e; --ink-body: #242424; --ink-quote: #4a4742;
-        --label: #252525; --muted: #66615a; --rule: rgba(110, 155, 215, 0.3); --btn: #ede6d4; --btn-hover: #e6dec9;
+        --label: #252525; --muted: #66615a; --rule: rgba(110, 155, 215, 0.3); --red: rgba(214, 100, 96, 0.7); --btn: #ede6d4; --btn-hover: #e6dec9;
         --cta: rgba(110, 155, 215, 0.9); --success: #4f7053; --error: #a33333;
         --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
         --sans: "Manrope", -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -28,7 +28,7 @@
 
       #app, .panel { display: flex; flex-direction: column; height: 100vh; }
 
-      .header, .subHeader { flex: none; height: 84px; display: flex; align-items: center; padding: 0 var(--pad); border-bottom: 1px solid var(--rule); }
+      .header, .subHeader { flex: none; height: 84px; display: flex; align-items: center; padding: 0 var(--pad); border-bottom: 1px solid var(--red); }
       .header { justify-content: space-between; gap: 12px; }
       .who { min-width: 0; }
       .name { font-family: var(--serif); font-size: 28px; line-height: 30px; font-weight: 500; }
@@ -72,6 +72,22 @@
       .rowBody .exBox { margin-top: 20px; padding: 10px 14px 12px; background: var(--btn); border-radius: 8px; }
       .rowBody .exLabel { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
       .rowBody .ex { margin-top: 6px; font-family: var(--serif); font-size: 15px; line-height: 22px; font-style: italic; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-quote); }
+      /* search: field, topic chips, results */
+      .searchWrap { padding: 16px var(--pad) 0; }
+      .searchField { height: 42px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: #fff; border: 1.5px solid var(--cta); border-radius: 10px; }
+      .sIcon { display: flex; color: var(--muted); flex: none; }
+      .sIcon svg { width: 17px; height: 17px; }
+      .searchField input { flex: 1; min-width: 0; width: auto; height: auto; margin: 0; padding: 0; border: none; border-radius: 0; background: none; outline: none; font-size: 14px; }
+      .clearBtn { display: flex; flex: none; color: var(--muted); }
+      .clearBtn svg { width: 14px; height: 14px; }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .chip { height: 32px; padding: 0 14px; display: flex; align-items: center; gap: 6px; border-radius: 16px; font-size: 12px; font-weight: 500; white-space: nowrap; background: var(--btn); color: var(--muted); }
+      .chip .n { opacity: 0.7; }
+      .chip.active { background: #d9cfb2; color: var(--ink); font-weight: 600; }
+      .chip:hover:not(.active) { background: var(--btn-hover); }
+      .results { margin-top: 28px; }
+      .results.titled { margin-top: 20px; }
+      .row .word b { font-weight: 700; }
       .empty { color: var(--muted); font-size: 13px; padding: 12px var(--pad); }
 
       .footer { flex: none; height: 84px; padding: 0 var(--pad); border-top: 1px solid var(--rule); display: flex; align-items: center; gap: 12px; }
@@ -89,7 +105,7 @@
       input.tall { margin: 18px var(--pad) 4px; }
 
       .primaryBtn {
-        width: calc(100% - var(--pad) * 2); height: 46px; margin: 14px var(--pad) 8px; display: flex; align-items: center; justify-content: center; gap: 10px;
+        width: calc(100% - var(--pad) * 2); height: 46px; margin: 22px var(--pad) 8px; display: flex; align-items: center; justify-content: center; gap: 10px;
         font-size: 15px; font-weight: 500; color: #2b2822; background: var(--btn); border-radius: 10px;
       }
       .primaryBtn svg { width: 19px; height: 19px; }
