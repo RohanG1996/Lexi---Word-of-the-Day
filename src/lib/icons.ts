@@ -20,3 +20,5 @@ export const ICON_BOOKMARK = `<svg width="22" height="25" viewBox="0 0 22 25" fi
 export const ICON_BOOKMARK_FILLED = `<svg width="22" height="25" viewBox="0 0 22 25" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4.5 2.5h13v20l-6.5-5.2-6.5 5.2z"/></svg>`;
 
 export const ICON_ARROW_RIGHT = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="20" y2="12"/><polyline points="13,5 20,12 13,19"/></svg>`;
+
+export const ICON_MINIMIZE_THIN = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="12" x2="20" y2="12"/></svg>`;

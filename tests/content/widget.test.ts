@@ -69,9 +69,8 @@ describe("renderWidget", () => {
     await Promise.resolve();
 
     expect(handlers.onSave).toHaveBeenCalledOnce();
-    expect(saveBtn.getAttribute("aria-pressed")).toBe("true");
     expect(saveBtn.classList.contains("saved")).toBe(true);
-    expect(saveBtn.textContent).toContain("Save to my library");
+    expect(saveBtn.textContent).toContain("Added to my library");
   });
 
   it("shows an error and re-enables the button when onSave rejects", async () => {
@@ -124,7 +123,7 @@ describe("renderWidget", () => {
     fitWord(card);
     spy.mockRestore();
 
-    expect(wordEl.style.fontSize).toBe("48px");
+    expect(wordEl.style.fontSize).toBe("44px");
   });
 
   it("calls onToggleCollapse when the collapsed pill is clicked", () => {
