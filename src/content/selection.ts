@@ -1,15 +1,15 @@
-import { ICON_CLOSE, ICON_BOOK, ICON_CHECK_CIRCLE } from "../lib/icons";
+import { ICON_CLOSE_THIN, ICON_BOOK, ICON_CHECK_CIRCLE } from "../lib/icons";
 import { ADD_WORD_MESSAGE, type AddWordResponse } from "../lib/messages";
 
 const MIN_LEN = 2;
 const MAX_LEN = 60;
-const POPOVER_WIDTH = 190;
-const POPOVER_HEIGHT_ESTIMATE = 110;
+const POPOVER_WIDTH = 270;
+const POPOVER_HEIGHT_ESTIMATE = 162;
 const GAP = 12;
 // Cormorant Garamond is decorative only (falls back to Georgia if this fails
 // to load on a page with a strict CSP) - unlike Material Icons, dropped
 // entirely below, nothing here breaks if this link is blocked.
-const FONTS_HREF = "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Manrope:wght@500;600&display=swap";
+const FONTS_HREF = "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=Manrope:wght@400;500&display=swap";
 
 let host: HTMLDivElement | null = null;
 
@@ -34,25 +34,35 @@ function injectStyles(root: ShadowRoot): void {
 
   const style = document.createElement("style");
   style.textContent = `
-    .popover { position: fixed; width: ${POPOVER_WIDTH}px; background: #F4EDE1; border: 1px solid #e4d9bd; border-radius: 10px;
-      box-shadow: 0 10px 24px rgba(43,38,20,0.20); padding: 10px 12px; box-sizing: border-box; color: #2b2822;
-      font-family: 'Manrope', -apple-system, Segoe UI, Roboto, sans-serif; z-index: 2147483647; }
+    .popover { position: fixed; width: ${POPOVER_WIDTH}px; box-sizing: border-box; z-index: 2147483647;
+      --paper: #F7F3EA; --border: #D8D3C9; --rule: rgba(110,155,215,0.5); --margin: rgba(214,100,96,0.7); --cta: rgba(110,155,215,0.9);
+      background: var(--paper); color: #171717; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 24px rgba(0,0,0,0.16);
+      font-family: 'Manrope', -apple-system, Segoe UI, Roboto, sans-serif; }
+    /* same ruled-paper grid as the widget: rules on a 49px pitch, red margin line down the left */
+    .popover::before { content: ""; position: absolute; inset: 0; border-radius: 12px; pointer-events: none;
+      background: repeating-linear-gradient(to bottom, transparent 0 48px, var(--rule) 48px 49px); }
+    .popover::after { content: ""; position: absolute; top: 0; bottom: 0; left: 28px; width: 1.5px; background: var(--margin); pointer-events: none; }
+    .popover > * { position: relative; }
     /* default: popover sits to the RIGHT of the selection, caret on the left edge pointing left at it */
-    .caret { position: absolute; left: -6px; top: 50%; width: 10px; height: 10px; background: #F4EDE1;
-      border-left: 1px solid #e4d9bd; border-bottom: 1px solid #e4d9bd; transform: translateY(-50%) rotate(45deg); }
+    .caret { position: absolute; left: -7px; top: 50%; width: 12px; height: 12px; background: var(--paper);
+      border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); transform: translateY(-50%) rotate(45deg); }
     /* when there's no room on the right, popover sits to the LEFT of the selection instead */
-    .popover.placeLeft .caret { left: auto; right: -6px; border-left: none; border-bottom: none;
-      border-right: 1px solid #e4d9bd; border-top: 1px solid #e4d9bd; }
-    .row { display: flex; align-items: center; justify-content: space-between; margin: 0 -12px 8px; padding: 0 12px 7px; border-bottom: 1px dashed #E2B4AD; }
-    .label { font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 8px; letter-spacing: 0.08em; color: #8a7f63; text-transform: uppercase; }
-    .closeBtn { color: #9c9174; cursor: pointer; background: none; border: none; padding: 0; display: flex; }
-    .word { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 17px; font-weight: 700; margin-bottom: 8px; word-break: break-word; }
-    .action { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; font-weight: 600;
-      color: #fff; background: #8a7f63; border: 1px solid #8a7f63; padding: 7px 10px; border-radius: 8px; cursor: pointer; font-family: inherit;
-      white-space: nowrap; }
-    .action.saved { color: #5a7d5f; background: transparent; border-color: #bcd0bd; cursor: default; }
+    .popover.placeLeft .caret { left: auto; right: -7px; border-left: none; border-bottom: none;
+      border-right: 1px solid var(--border); border-top: 1px solid var(--border); }
+    .row { height: 49px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 14px 0 40px; }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; color: #66615A; text-transform: uppercase; }
+    .closeBtn { color: #252525; cursor: pointer; background: none; border: none; padding: 0; display: flex; }
+    .closeBtn svg { width: 16px; height: 16px; }
+    .word { min-height: 49px; box-sizing: border-box; display: flex; align-items: center; padding: 0 16px 0 40px; word-break: break-word;
+      font-family: 'Cormorant Garamond', Georgia, serif; font-size: 30px; line-height: 32px; font-weight: 500; letter-spacing: -0.01em; }
+    .action { display: flex; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box; width: calc(100% - 56px); height: 44px;
+      margin: 2px 16px 16px 40px; font-size: 14px; font-weight: 400; color: #171717; background: var(--paper);
+      border: 1.5px solid var(--cta); border-radius: 10px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .action svg { width: 17px; height: 17px; }
+    .action.saved { color: #4F7053; border-color: #BCD0BD; cursor: default; }
     .action:disabled { cursor: default; opacity: 0.75; }
-    .err { color: #a33; font-size: 10px; margin-top: 6px; }
+    .err { color: #A33333; font-size: 12px; padding: 0 16px 14px 40px; }
+    .err:empty { display: none; }
   `;
   root.appendChild(fontsLink);
   root.appendChild(style);
@@ -84,7 +94,7 @@ function showPopover(selectedText: string, rect: DOMRect): void {
     <div class="caret"></div>
     <div class="row">
       <span class="label">Selected</span>
-      <button class="closeBtn" aria-label="Close">${ICON_CLOSE}</button>
+      <button class="closeBtn" aria-label="Close">${ICON_CLOSE_THIN}</button>
     </div>
     <div class="word"></div>
     <button class="action">${ICON_BOOK}Add to my library</button>

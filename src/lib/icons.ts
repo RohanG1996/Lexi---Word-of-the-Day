@@ -22,3 +22,16 @@ export const ICON_BOOKMARK_FILLED = `<svg width="22" height="25" viewBox="0 0 22
 export const ICON_ARROW_RIGHT = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="20" y2="12"/><polyline points="13,5 20,12 13,19"/></svg>`;
 
 export const ICON_MINIMIZE_THIN = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="12" x2="20" y2="12"/></svg>`;
+
+// Thin line icons for the side panel (extension page, so no CSP concern, but kept inline for consistency).
+const LINE = (inner: string, sw = "1.5") =>
+  `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+
+export const ICON_BACK = LINE(`<line x1="20" y1="12" x2="4" y2="12"/><polyline points="11,5 4,12 11,19"/>`);
+export const ICON_LIST = LINE(
+  `<line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><line x1="4" y1="6" x2="4.01" y2="6"/><line x1="4" y1="12" x2="4.01" y2="12"/><line x1="4" y1="18" x2="4.01" y2="18"/>`,
+  "2"
+);
+export const ICON_SEARCH = LINE(`<circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>`, "2");
+export const ICON_PLUS = LINE(`<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>`, "2");
+export const ICON_SCHOOL = LINE(`<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/>`, "1.8");
