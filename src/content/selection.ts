@@ -1,8 +1,7 @@
 import { ICON_CLOSE_THIN, ICON_BOOK, ICON_CHECK_CIRCLE } from "../lib/icons";
 import { ADD_WORD_MESSAGE, type AddWordResponse } from "../lib/messages";
+import { isLookupCandidate } from "./selectionRules";
 
-const MIN_LEN = 2;
-const MAX_LEN = 60;
 const POPOVER_WIDTH = 190;
 const POPOVER_HEIGHT_ESTIMATE = 116;
 const GAP = 12;
@@ -129,7 +128,7 @@ document.addEventListener("mouseup", (event) => {
 
   const selection = window.getSelection();
   const text = selection?.toString().trim() ?? "";
-  if (!text || text.length < MIN_LEN || text.length > MAX_LEN) {
+  if (!isLookupCandidate(text)) {
     removePopover();
     return;
   }
