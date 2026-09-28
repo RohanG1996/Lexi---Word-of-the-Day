@@ -27,9 +27,9 @@ const CSS = `
     --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
     --sans: 'Manrope', -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
-  /* Same footprint as the original (V0) card: 255px wide, sized to its content. */
+  /* Compact card (V0 was 255px; nudged wider), sized to its content. */
   .card { position: fixed; top: 16px; right: 16px; z-index: 2147483647; box-sizing: border-box;
-    width: 255px; display: flex; flex-direction: column;
+    width: 300px; display: flex; flex-direction: column;
     background: var(--paper); color: var(--ink); border: 1px solid var(--border); border-radius: 11px;
     box-shadow: 0 12px 28px rgba(0,0,0,0.14); overflow: hidden; font-family: var(--serif); }
   /* Ruled lines: one every 35px beneath the header, behind all content. */
@@ -74,8 +74,8 @@ const CSS = `
   .widgetErr:empty { display: none; }
 
   .pill { position: fixed; top: 16px; right: 16px; z-index: 2147483647; background: var(--paper); border: 1px solid var(--border);
-    border-radius: 999px; box-shadow: 0 6px 15px rgba(0,0,0,0.14); color: var(--ink); padding: 6px 16px; cursor: pointer; }
-  .pillWord { font-family: var(--serif); font-size: 16px; font-weight: 500; line-height: 20px; }
+    border-radius: 999px; box-shadow: 0 8px 20px rgba(0,0,0,0.16); color: var(--ink); padding: 10px 24px; cursor: pointer; }
+  .pillWord { font-family: var(--serif); font-size: 22px; font-weight: 500; line-height: 28px; }
 `;
 
 function injectStyles(root: ShadowRoot): void {
