@@ -17,7 +17,7 @@ const FONTS_HREF =
   "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Manrope:wght@400;500&display=swap";
 
 // Largest first; the word steps down until it fits the card's text column.
-const WORD_SIZES = [28, 24, 21, 18];
+const WORD_SIZES = [32, 28, 24, 21, 18];
 
 const CSS = `
   :host { all: initial; }
@@ -60,7 +60,7 @@ const CSS = `
   /* it is taller than one row, so it masks the rule that would run through its middle and draws its own bottom rule */
   .word { margin: 0 -16px 0 -32px; padding: 0 16px 0 32px; height: calc(var(--row) * 2); box-sizing: border-box; display: flex; align-items: flex-end;
     background: var(--paper); border-bottom: 1px solid var(--rule);
-    font-size: 28px; line-height: 1.2; font-weight: 500; letter-spacing: -0.01em; color: var(--ink); white-space: nowrap; }
+    font-size: 32px; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); white-space: nowrap; }
   .pron { margin: 0; height: var(--row); display: flex; align-items: center; gap: 12px; font-size: 13px; letter-spacing: 0.05em; color: var(--ink-2); }
   .pron[hidden] { display: none; }
   .pos { font-style: italic; }
@@ -107,12 +107,14 @@ interface WidgetHandlers {
 // size is kept.
 export function fitWord(card: HTMLElement): void {
   const wordEl = card.querySelector(".word") as HTMLElement | null;
+  // measure the text itself: the .word row spans the full card width (it masks the rule behind it)
+  const wordText = card.querySelector(".wordText") as HTMLElement | null;
   const column = card.querySelector(".content") as HTMLElement | null;
-  if (!wordEl || !column) return;
+  if (!wordEl || !wordText || !column) return;
   const available = column.clientWidth - 48;
   for (const size of WORD_SIZES) {
     wordEl.style.fontSize = `${size}px`;
-    if (!available || wordEl.getBoundingClientRect().width <= available) break;
+    if (!available || wordText.getBoundingClientRect().width <= available) break;
   }
 }
 
@@ -152,7 +154,7 @@ export function renderWidget(root: ShadowRoot, data: WidgetData, handlers: Widge
     </header>
     <div class="content">
       <p class="num"></p>
-      <h2 class="word"></h2>
+      <h2 class="word"><span class="wordText"></span></h2>
       <p class="pron"><span class="ipa"></span><span class="pos"></span></p>
       <p class="meaning"></p>
       <p class="exampleLabel">Example</p>
@@ -165,7 +167,7 @@ export function renderWidget(root: ShadowRoot, data: WidgetData, handlers: Widge
   `;
   card.querySelector(".num")!.textContent =
     data.wordNumber === undefined ? "" : `No. ${String(data.wordNumber).padStart(3, "0")}`;
-  card.querySelector(".word")!.textContent = data.word;
+  card.querySelector(".wordText")!.textContent = data.word;
   (card.querySelector(".pron") as HTMLElement).hidden = !data.pronunciation && !data.partOfSpeech;
   card.querySelector(".ipa")!.textContent = data.pronunciation;
   card.querySelector(".pos")!.textContent = data.partOfSpeech;

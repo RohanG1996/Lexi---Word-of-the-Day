@@ -114,11 +114,13 @@ describe("renderWidget", () => {
     const card = root.querySelector(".card") as HTMLElement;
     const column = card.querySelector(".content") as HTMLElement;
     const wordEl = card.querySelector(".word") as HTMLElement;
+    const wordText = card.querySelector(".wordText") as HTMLElement;
 
     Object.defineProperty(column, "clientWidth", { value: 300, configurable: true });
     const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
-      const size = parseInt((this as HTMLElement).style.fontSize || "56", 10);
-      return { width: this === wordEl ? size * 10 : 0, height: 0 } as DOMRect;
+      // the text is wider the larger the .word row's font-size is; the row itself always spans the card
+      const size = parseInt(wordEl.style.fontSize || "32", 10);
+      return { width: this === wordText ? size * 10 : this === wordEl ? 300 : 0, height: 0 } as DOMRect;
     });
     fitWord(card);
     spy.mockRestore();
