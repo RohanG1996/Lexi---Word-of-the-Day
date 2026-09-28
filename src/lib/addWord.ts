@@ -29,6 +29,7 @@ export async function addWord(deps: AddWordDeps, rawWord: string): Promise<Compa
     savedDate: deps.today(),
     source: "manual",
     quizStats: { seen: 0, known: 0 },
+    topic: explanation.topic,
   };
   await deps.wordStore.saveWord(record);
   await deps.detailCache.setDetail({

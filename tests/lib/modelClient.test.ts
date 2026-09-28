@@ -16,7 +16,7 @@ describe("createModelClient", () => {
     const client = createModelClient("anthropic", "sk-ant-test");
     const result = await client.explainWord("ephemeral");
 
-    expect(result).toEqual({ meaning: "m", example: "e", pronunciation: "", partOfSpeech: "" });
+    expect(result).toEqual({ meaning: "m", example: "e", pronunciation: "", partOfSpeech: "", topic: "Other" });
     expect(fetchMock.mock.calls[0][0]).toBe("https://api.anthropic.com/v1/messages");
   });
 
@@ -44,7 +44,7 @@ describe("createModelClient", () => {
     const client = createModelClient("groq", "gsk_test");
     const result = await client.explainWord("ephemeral");
 
-    expect(result).toEqual({ meaning: "m", example: "e", pronunciation: "", partOfSpeech: "" });
+    expect(result).toEqual({ meaning: "m", example: "e", pronunciation: "", partOfSpeech: "", topic: "Other" });
     expect(fetchMock.mock.calls[0][0]).toBe("https://api.groq.com/openai/v1/chat/completions");
   });
 });
