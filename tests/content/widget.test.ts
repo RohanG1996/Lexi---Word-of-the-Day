@@ -115,7 +115,7 @@ describe("renderWidget", () => {
     const column = card.querySelector(".content") as HTMLElement;
     const wordEl = card.querySelector(".word") as HTMLElement;
 
-    Object.defineProperty(column, "clientWidth", { value: 480, configurable: true });
+    Object.defineProperty(column, "clientWidth", { value: 255, configurable: true });
     const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
       const size = parseInt((this as HTMLElement).style.fontSize || "56", 10);
       return { width: this === wordEl ? size * 8 : 0, height: 0 } as DOMRect;
@@ -123,7 +123,7 @@ describe("renderWidget", () => {
     fitWord(card);
     spy.mockRestore();
 
-    expect(wordEl.style.fontSize).toBe("44px");
+    expect(wordEl.style.fontSize).toBe("24px");
   });
 
   it("calls onToggleCollapse when the collapsed pill is clicked", () => {
