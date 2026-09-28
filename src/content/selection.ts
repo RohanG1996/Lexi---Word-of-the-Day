@@ -35,33 +35,29 @@ function injectStyles(root: ShadowRoot): void {
   const style = document.createElement("style");
   style.textContent = `
     .popover { position: fixed; width: ${POPOVER_WIDTH}px; box-sizing: border-box; z-index: 2147483647;
-      --paper: #F7F3EA; --border: #D8D3C9; --rule: rgba(110,155,215,0.5); --margin: rgba(214,100,96,0.7); --cta: rgba(110,155,215,0.9);
+      --paper: #F7F3EA; --border: #D8D3C9; --rule: rgba(214,100,96,0.7); --cta: rgba(110,155,215,0.9);
       background: var(--paper); color: #171717; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 24px rgba(0,0,0,0.18);
       font-family: 'Manrope', -apple-system, Segoe UI, Roboto, sans-serif; }
-    /* same ruled-paper look as the widget, at the original popover size: rules on a 35px pitch, red margin line down the left */
-    .popover::before { content: ""; position: absolute; inset: 0; border-radius: 10px; pointer-events: none;
-      background: repeating-linear-gradient(to bottom, transparent 0 34px, var(--rule) 34px 35px); }
-    .popover::after { content: ""; position: absolute; top: 0; bottom: 0; left: 20px; width: 1.5px; background: var(--margin); pointer-events: none; }
-    .popover > * { position: relative; }
+    /* simplified small card: no ruled lines or margin line, just a red rule under the header */
     /* default: popover sits to the RIGHT of the selection, caret on the left edge pointing left at it */
     .caret { position: absolute; left: -6px; top: 50%; width: 10px; height: 10px; background: var(--paper);
       border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); transform: translateY(-50%) rotate(45deg); }
     /* when there's no room on the right, popover sits to the LEFT of the selection instead */
     .popover.placeLeft .caret { left: auto; right: -6px; border-left: none; border-bottom: none;
       border-right: 1px solid var(--border); border-top: 1px solid var(--border); }
-    .row { height: 35px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 30px; }
+    .row { height: 35px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 14px; border-bottom: 1px solid var(--rule); }
     .label { font-size: 9px; font-weight: 500; letter-spacing: 0.14em; color: #66615A; text-transform: uppercase; }
     .closeBtn { color: #252525; cursor: pointer; background: none; border: none; padding: 0; display: flex; }
     .closeBtn svg { width: 12px; height: 12px; }
-    .word { min-height: 35px; box-sizing: border-box; display: flex; align-items: center; padding: 0 12px 0 30px; word-break: break-word;
+    .word { min-height: 35px; box-sizing: border-box; display: flex; align-items: center; padding: 0 12px 0 14px; word-break: break-word;
       font-family: 'Cormorant Garamond', Georgia, serif; font-size: 20px; line-height: 22px; font-weight: 500; letter-spacing: -0.01em; }
-    .action { display: flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; width: calc(100% - 42px); height: 32px;
-      margin: 2px 12px 12px 30px; font-size: 11px; font-weight: 400; color: #171717; background: var(--paper);
+    .action { display: flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; width: calc(100% - 26px); height: 32px;
+      margin: 2px 12px 12px 14px; font-size: 11px; font-weight: 500; color: #2B2822; background: transparent;
       border: 1.5px solid var(--cta); border-radius: 8px; cursor: pointer; font-family: inherit; white-space: nowrap; }
     .action svg { width: 14px; height: 14px; }
     .action.saved { color: #4F7053; border-color: #BCD0BD; cursor: default; }
     .action:disabled { cursor: default; opacity: 0.75; }
-    .err { color: #A33333; font-size: 10px; padding: 0 12px 10px 30px; }
+    .err { color: #A33333; font-size: 10px; padding: 0 12px 10px 14px; }
     .err:empty { display: none; }
   `;
   root.appendChild(fontsLink);
