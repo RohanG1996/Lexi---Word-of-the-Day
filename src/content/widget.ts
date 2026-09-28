@@ -1,4 +1,4 @@
-import { ICON_MINIMIZE, ICON_BOOK, ICON_CHECK_CIRCLE } from "../lib/icons";
+import { ICON_CLOSE_THIN, ICON_BOOKMARK, ICON_BOOKMARK_FILLED, ICON_ARROW_RIGHT } from "../lib/icons";
 
 export interface WidgetData {
   word: string;
@@ -6,76 +6,85 @@ export interface WidgetData {
   example: string;
   pronunciation: string;
   partOfSpeech: string;
+  // Position in the daily-word sequence; the "No. 027" line is omitted without it.
+  wordNumber?: number;
 }
 
-// Ruled-paper grid: every rule sits on a 35px step, and body text uses a
-// half-step (17.5px) line height so two text lines fill exactly one step.
-export const GRID_STEP = 35;
-export const TEXT_LINE = 17.5;
-
-// Cormorant Garamond/Manrope are decorative only (fall back to Georgia/system
-// sans if this fails to load on a page with a strict CSP) - unlike Material
-// Icons, deliberately not used here; see icons.ts for why.
+// Fonts are decorative only (fall back to Georgia / Arial Narrow if this fails
+// to load on a page with a strict CSP) - unlike Material Icons, deliberately
+// not used here; see icons.ts for why.
 const FONTS_HREF =
-  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap";
+  "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Sans+Condensed:wght@400;500&display=swap";
 
-const DASH_MASK = "repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 7px)";
+// Largest first; the word steps down until it fits the card's text column.
+const WORD_SIZES = [62, 52, 44, 36, 30];
+
+const CSS = `
+  :host { all: initial; }
+  .card, .pill {
+    --paper: #F7F3EA; --ink: #171717; --ink-2: #45423E; --muted: #66615A; --border: #D8D3C9;
+    --rule: rgba(226,162,157,0.55); --dot: #A5A5A0; --line: #77736C;
+    --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --sans: 'IBM Plex Sans Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  }
+  .card { position: fixed; top: 16px; right: 16px; z-index: 2147483647; box-sizing: border-box;
+    width: 480px; min-height: 525px; display: flex; flex-direction: column;
+    background: var(--paper); color: var(--ink); border: 1px solid var(--border); border-radius: 13px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.12); overflow: hidden; font-family: var(--serif); }
+  /* Ruled lines: one every 49px beneath the header, behind all content. */
+  .card::before { content: ""; position: absolute; left: 0; right: 0; top: 64px; bottom: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, transparent 0 48px, var(--rule) 48px 49px); }
+  .card > * { position: relative; }
+  @media (max-width: 512px) { .card { zoom: 0.85; } }
+  @media (max-width: 440px) { .card { zoom: 0.7; } }
+
+  button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+  button:focus-visible { outline: 1.5px solid var(--line); outline-offset: 3px; border-radius: 4px; }
+
+  .head { box-sizing: border-box; height: 64px; display: flex; align-items: center; padding: 0 26px 0 37px;
+    border-bottom: 1px solid var(--rule); font-family: var(--sans); font-size: 15px; }
+  .label { margin: 0; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 500; color: #252525; }
+  .date { margin: 0 24px 0 auto; color: #454545; }
+  .closeBtn { display: flex; color: #252525; transition: opacity .15s, transform .15s; }
+  .closeBtn:hover { opacity: 0.6; transform: scale(1.08); }
+
+  .content { padding: 10px 35px 0 40px; }
+  .num { margin: 0; height: 34px; line-height: 34px; text-align: right; font-family: var(--sans); font-size: 13px;
+    letter-spacing: 0.08em; color: #4A4A4A; }
+  .num:empty { display: none; }
+  .word { margin: 0; font-size: 62px; line-height: 62px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink); white-space: nowrap; }
+  .pron { margin: 0; height: 40px; display: flex; align-items: center; gap: 22px; font-size: 20px; letter-spacing: 0.05em; color: var(--ink-2); }
+  .pron[hidden] { display: none; }
+  .pos { font-style: italic; }
+  .meaning { margin: 23px 0 0; max-width: 350px; font-size: 26px; letter-spacing: 0.02em; line-height: 36px; font-weight: 500; color: #242424; }
+  .exampleLabel { margin: 28px 0 0; line-height: 20px; font-family: var(--sans); font-size: 15px; font-weight: 500;
+    letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); }
+  .example { margin: 15px 0 0; max-width: 340px; font-size: 22px; letter-spacing: 0.03em; line-height: 32px; font-style: italic; font-weight: 500; color: #4A4742; }
+
+  .footer { margin-top: auto; position: relative; box-sizing: border-box; height: 75px; padding: 0 36px 10px 28px;
+    display: flex; align-items: center; justify-content: space-between; }
+  .dot { width: 20px; height: 20px; border-radius: 50%; background: var(--dot); flex: none; }
+  .saveBtn { display: inline-flex; align-items: center; gap: 12px; font-family: var(--sans); font-size: 17px; font-weight: 400; color: #272727; }
+  .saveBtn:disabled { cursor: default; opacity: 0.7; }
+  .saveBtn.saved { cursor: default; opacity: 1; }
+  .saveIcon { display: flex; }
+  .minimizeBtn { width: 50px; height: 50px; box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid var(--line); border-radius: 50%; color: #30302E; transition: background .15s, transform .15s; }
+  .minimizeBtn:hover { background: rgba(0,0,0,0.04); transform: translateX(1px); }
+  .widgetErr { position: absolute; left: 0; right: 0; bottom: 4px; margin: 0; text-align: center; font-family: var(--sans); font-size: 12px; color: #a33; }
+  .widgetErr:empty { display: none; }
+
+  .pill { position: fixed; top: 16px; right: 16px; z-index: 2147483647; background: var(--paper); border: 1px solid var(--border);
+    border-radius: 999px; box-shadow: 0 8px 20px rgba(0,0,0,0.16); color: var(--ink); padding: 8px 22px; cursor: pointer; }
+  .pillWord { font-family: var(--serif); font-size: 22px; font-weight: 500; line-height: 28px; }
+`;
 
 function injectStyles(root: ShadowRoot): void {
   const fontsLink = document.createElement("link");
   fontsLink.rel = "stylesheet";
   fontsLink.href = FONTS_HREF;
-
   const style = document.createElement("style");
-  style.textContent = `
-    .card { position: fixed; top: 16px; right: 16px; width: 255px; background: #F4EDE1; color: #2b2822;
-      border: 1px solid #e4d9bd; border-radius: 11px; box-shadow: 0 12px 28px rgba(43,38,20,0.16);
-      font-family: 'Manrope', -apple-system, Segoe UI, Roboto, sans-serif; z-index: 2147483647; overflow: hidden; }
-    .mono { font-family: ui-monospace, 'SF Mono', Consolas, monospace; }
-
-    .head { position: relative; box-sizing: border-box; height: 50px; display: flex; align-items: flex-start; justify-content: space-between; padding: 12px 14px 0; }
-    .head::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: #E2B4AD;
-      -webkit-mask-image: ${DASH_MASK}; mask-image: ${DASH_MASK}; }
-    .label { font-size: 9px; line-height: 12px; letter-spacing: 0.1em; color: #8a7f63; text-transform: uppercase; margin: 0; }
-    .date { font-size: 8px; line-height: 10px; color: #8a7f63; margin: 5px 0 0; }
-    .headBtns { display: flex; align-items: center; gap: 9px; }
-    .minimizeBtn { color: #9c9174; cursor: pointer; background: none; border: none; padding: 0; display: flex; }
-    .closeBtn { font-size: 10px; color: #9c9174; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
-
-    .body { position: relative; }
-    .body::before { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: ${GRID_STEP}px; pointer-events: none;
-      background: repeating-linear-gradient(to bottom, transparent 0 ${GRID_STEP - 1}px, #E2B4AD ${GRID_STEP - 1}px ${GRID_STEP}px);
-      -webkit-mask-image: ${DASH_MASK}; mask-image: ${DASH_MASK}; }
-
-    .row { position: relative; box-sizing: border-box; height: ${GRID_STEP}px; margin: 0; padding: 0 14px; display: flex; align-items: center; }
-    .row[hidden] { display: none; }
-    .row.multi { align-items: flex-end; }
-    .row.multi .blk { position: relative; top: 8.25px; }
-    .txt { background: #F4EDE1; padding: 0 6px 0 0; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-    .blk { display: block; min-width: 0; line-height: ${TEXT_LINE}px; }
-
-    .wordRow { align-items: flex-end; }
-    .word { position: relative; top: 13.5px; background: #F4EDE1; padding-right: 6px; white-space: nowrap;
-      font-family: 'Cormorant Garamond', Georgia, serif; font-size: 26px; font-weight: 700; line-height: 32px; }
-    .pron { padding-top: 8px; font-size: 10px; color: #7d735a; }
-    .pron .pos { font-style: italic; margin-left: 8px; }
-    .meaning { font-size: 12px; }
-    .exampleLabel { align-items: flex-end; padding-bottom: 6px; font-size: 9px; letter-spacing: 0.1em; color: #8a7f63; text-transform: uppercase; }
-    .example { font-size: 11px; font-style: italic; color: #3a362c; }
-
-    .footer { position: relative; box-sizing: border-box; height: ${GRID_STEP * 2}px; display: flex; align-items: flex-start; justify-content: center; padding: 25px 14px 0; }
-    .saveBtn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; font-weight: 600; color: #6b6350;
-      background: #F4EDE1; border: 1px solid #ddd0ae; padding: 7px 12px; border-radius: 8px; cursor: pointer; font-family: inherit; white-space: nowrap; }
-    .saveBtn.saved { color: #5a7d5f; border-color: #bcd0bd; cursor: default; }
-    .saveBtn:disabled { cursor: default; opacity: 0.7; }
-    .widgetErr { color: #a33; font-size: 10px; text-align: center; margin: 0; padding: 0 14px 12px; }
-    .widgetErr:empty { display: none; }
-
-    .pill { position: fixed; top: 16px; right: 16px; background: #F4EDE1; border: 1px solid #e4d9bd; border-radius: 999px;
-      box-shadow: 0 8px 20px rgba(43,38,20,0.28); color: #2b2822; padding: 10px 22px; display: flex; align-items: center; cursor: pointer;
-      font-family: 'Manrope', -apple-system, Segoe UI, Roboto, sans-serif; z-index: 2147483647; }
-    .pillWord { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 22px; font-weight: 700; line-height: 28px; }
-  `;
+  style.textContent = CSS;
   root.appendChild(fontsLink);
   root.appendChild(style);
 }
@@ -86,27 +95,25 @@ interface WidgetHandlers {
   onSave: () => Promise<void>;
 }
 
-// Rows grow in whole grid steps so the rules never move, and the last line of
-// multi-line text sits on a rule. Measurement returns 0 when the card isn't
-// laid out yet (e.g. jsdom), in which case everything stays single-step.
-export function snapCardLayout(card: HTMLElement): void {
+// Steps the word down until it fits the card's text column. Measurement returns
+// 0 when the card isn't laid out yet (e.g. jsdom), in which case the largest
+// size is kept.
+export function fitWord(card: HTMLElement): void {
   const wordEl = card.querySelector(".word") as HTMLElement | null;
-  const wordRow = card.querySelector(".wordRow") as HTMLElement | null;
-  if (wordEl && wordRow) {
-    const available = wordRow.clientWidth - 28;
-    for (const size of [26, 22, 19]) {
-      wordEl.style.fontSize = `${size}px`;
-      if (!available || wordEl.getBoundingClientRect().width <= available) break;
-    }
+  const column = card.querySelector(".content") as HTMLElement | null;
+  if (!wordEl || !column) return;
+  const available = column.clientWidth - 75;
+  for (const size of WORD_SIZES) {
+    wordEl.style.fontSize = `${size}px`;
+    wordEl.style.lineHeight = `${size}px`;
+    if (!available || wordEl.getBoundingClientRect().width <= available) break;
   }
+}
 
-  card.querySelectorAll<HTMLElement>(".row[data-snap]").forEach((row) => {
-    const blk = row.querySelector(".blk") as HTMLElement | null;
-    const height = blk?.getBoundingClientRect().height ?? 0;
-    const lines = Math.round(height / TEXT_LINE);
-    row.classList.toggle("multi", lines > 1);
-    row.style.height = `${Math.max(1, Math.ceil((lines * TEXT_LINE) / GRID_STEP)) * GRID_STEP}px`;
-  });
+// "Mon, 21 Oct" regardless of the browser locale.
+function formatDate(d: Date): string {
+  const part = (opts: Intl.DateTimeFormatOptions) => d.toLocaleDateString("en-US", opts);
+  return `${part({ weekday: "short" })}, ${d.getDate()} ${part({ month: "short" })}`;
 }
 
 export function renderWidget(root: ShadowRoot, data: WidgetData, handlers: WidgetHandlers, collapsed: boolean): void {
@@ -123,66 +130,63 @@ export function renderWidget(root: ShadowRoot, data: WidgetData, handlers: Widge
     return;
   }
 
-  const card = document.createElement("div");
+  const card = document.createElement("section");
   card.className = "card";
+  card.setAttribute("aria-label", "Word of the day");
   card.innerHTML = `
-    <div class="head">
-      <div>
-        <p class="label mono">Word of the day</p>
-        <p class="date mono"></p>
-      </div>
-      <div class="headBtns">
-        <button class="minimizeBtn" aria-label="Minimize">${ICON_MINIMIZE}</button>
-        <button class="closeBtn" aria-label="Close">✕</button>
-      </div>
+    <header class="head">
+      <p class="label">Word of the day</p>
+      <p class="date"></p>
+      <button class="closeBtn" aria-label="Close">${ICON_CLOSE_THIN}</button>
+    </header>
+    <div class="content">
+      <p class="num"></p>
+      <h2 class="word"></h2>
+      <p class="pron"><span class="ipa"></span><span class="pos"></span></p>
+      <p class="meaning"></p>
+      <p class="exampleLabel">Example</p>
+      <p class="example"></p>
     </div>
-    <div class="body">
-      <div class="row wordRow"><span class="word"></span></div>
-      <p class="row pron mono"><span class="txt"><span class="ipa"></span><span class="pos"></span></span></p>
-      <p class="row meaning" data-snap><span class="blk"><span class="txt meaningText"></span></span></p>
-      <p class="row exampleLabel mono"><span class="txt">Example</span></p>
-      <p class="row example" data-snap><span class="blk"><span class="txt exampleText"></span></span></p>
-      <div class="footer">
-        <button class="saveBtn">${ICON_BOOK}Add to my library</button>
-      </div>
-    </div>
-    <p class="widgetErr"></p>
+    <footer class="footer">
+      <span class="dot" aria-hidden="true"></span>
+      <button class="saveBtn" aria-pressed="false"><span class="saveIcon">${ICON_BOOKMARK}</span><span>Save to my library</span></button>
+      <button class="minimizeBtn" aria-label="Minimize">${ICON_ARROW_RIGHT}</button>
+      <p class="widgetErr" role="alert"></p>
+    </footer>
   `;
+  card.querySelector(".num")!.textContent =
+    data.wordNumber === undefined ? "" : `No. ${String(data.wordNumber).padStart(3, "0")}`;
   card.querySelector(".word")!.textContent = data.word;
   (card.querySelector(".pron") as HTMLElement).hidden = !data.pronunciation && !data.partOfSpeech;
   card.querySelector(".ipa")!.textContent = data.pronunciation;
   card.querySelector(".pos")!.textContent = data.partOfSpeech;
-  card.querySelector(".meaningText")!.textContent = data.meaning;
-  card.querySelector(".exampleText")!.textContent = data.example;
-  card.querySelector(".date")!.textContent = new Date().toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+  card.querySelector(".meaning")!.textContent = data.meaning;
+  card.querySelector(".example")!.textContent = data.example;
+  card.querySelector(".date")!.textContent = formatDate(new Date());
   card.querySelector(".minimizeBtn")!.addEventListener("click", handlers.onToggleCollapse);
   card.querySelector(".closeBtn")!.addEventListener("click", handlers.onClose);
 
   const saveBtn = card.querySelector(".saveBtn") as HTMLButtonElement;
+  const saveIcon = card.querySelector(".saveIcon") as HTMLElement;
   const widgetErr = card.querySelector(".widgetErr") as HTMLElement;
   saveBtn.addEventListener("click", async () => {
     widgetErr.textContent = "";
     saveBtn.disabled = true;
-    saveBtn.innerHTML = "Saving…";
     try {
       await handlers.onSave();
       saveBtn.classList.add("saved");
-      saveBtn.innerHTML = `${ICON_CHECK_CIRCLE}Added to my library`;
+      saveBtn.setAttribute("aria-pressed", "true");
+      saveIcon.innerHTML = ICON_BOOKMARK_FILLED;
     } catch (e) {
       saveBtn.disabled = false;
-      saveBtn.innerHTML = `${ICON_BOOK}Add to my library`;
       widgetErr.textContent = e instanceof Error ? e.message : "Couldn't save that word.";
     }
   });
 
   root.appendChild(card);
-  snapCardLayout(card);
+  fitWord(card);
   // Web fonts change text widths after first paint, so measure again once they settle.
-  document.fonts?.ready.then(() => card.isConnected && snapCardLayout(card));
+  document.fonts?.ready.then(() => card.isConnected && fitWord(card));
 }
 
 export function mountWidget(data: WidgetData, deps: { onSave: () => Promise<void> }): void {
