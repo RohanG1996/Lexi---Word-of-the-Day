@@ -41,6 +41,14 @@ const CSS = `
   .card::after { content: ""; position: absolute; top: 0; bottom: 0; left: 22px; width: 1.5px; pointer-events: none; background: var(--margin); }
   .card > * { position: relative; }
 
+  /* Entrance: the card slides in from beyond the right edge the first time it appears (not on expand from the pill). */
+  @keyframes lexiSlideIn {
+    from { transform: translateX(calc(100% + 32px)); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .card.enter { animation: lexiSlideIn 450ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
+  @media (prefers-reduced-motion: reduce) { .card.enter { animation: none; } }
+
   button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
   button:focus-visible { outline: 1.5px solid var(--line); outline-offset: 3px; border-radius: 4px; }
 
@@ -124,7 +132,13 @@ function formatDate(d: Date): string {
   return `${part({ weekday: "short" })}, ${d.getDate()} ${part({ month: "short" })}`;
 }
 
-export function renderWidget(root: ShadowRoot, data: WidgetData, handlers: WidgetHandlers, collapsed: boolean): void {
+export function renderWidget(
+  root: ShadowRoot,
+  data: WidgetData,
+  handlers: WidgetHandlers,
+  collapsed: boolean,
+  opts: { animate?: boolean } = {}
+): void {
   root.innerHTML = "";
   injectStyles(root);
 
@@ -139,7 +153,7 @@ export function renderWidget(root: ShadowRoot, data: WidgetData, handlers: Widge
   }
 
   const card = document.createElement("section");
-  card.className = "card";
+  card.className = opts.animate ? "card enter" : "card";
   card.setAttribute("aria-label", "Word of the day");
   card.innerHTML = `
     <header class="head">
@@ -207,13 +221,18 @@ export function mountWidget(data: WidgetData, deps: { onSave: () => Promise<void
   document.body.appendChild(host);
 
   let collapsed = false;
-  const rerender = () =>
+  let firstRender = true;
+  const rerender = () => {
+    // slide in only when the widget first appears, not when re-expanding from the pill
     renderWidget(
       shadow,
       data,
       { onClose: () => host.remove(), onToggleCollapse: toggle, onSave: deps.onSave },
-      collapsed
+      collapsed,
+      { animate: firstRender }
     );
+    firstRender = false;
+  };
   function toggle() {
     collapsed = !collapsed;
     rerender();

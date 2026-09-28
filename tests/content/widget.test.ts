@@ -128,6 +128,17 @@ describe("renderWidget", () => {
     expect(wordEl.style.fontSize).toBe("24px");
   });
 
+  it("adds the slide-in class only when asked to animate", () => {
+    const host = document.createElement("div");
+    const root = host.attachShadow({ mode: "open" });
+
+    renderWidget(root, makeData(), makeHandlers(), false);
+    expect(root.querySelector(".card")?.classList.contains("enter")).toBe(false);
+
+    renderWidget(root, makeData(), makeHandlers(), false, { animate: true });
+    expect(root.querySelector(".card")?.classList.contains("enter")).toBe(true);
+  });
+
   it("calls onToggleCollapse when the collapsed pill is clicked", () => {
     const host = document.createElement("div");
     const root = host.attachShadow({ mode: "open" });
