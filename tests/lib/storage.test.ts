@@ -36,6 +36,16 @@ describe("createWordStore", () => {
     expect(await store.getAllWords()).toHaveLength(0);
   });
 
+  it("deletes several words at once, case-insensitive, leaving the rest", async () => {
+    const store = createWordStore(createFakeStorageArea());
+    await store.saveWord(makeRecord("ephemeral"));
+    await store.saveWord(makeRecord("Lucid"));
+    await store.saveWord(makeRecord("latency"));
+    await store.deleteWords(["Ephemeral", "latency"]);
+    const words = await store.getAllWords();
+    expect(words.map((w) => w.word)).toEqual(["Lucid"]);
+  });
+
   it("updates quiz stats for a word", async () => {
     const store = createWordStore(createFakeStorageArea());
     await store.saveWord(makeRecord("ephemeral"));

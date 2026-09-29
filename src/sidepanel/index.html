@@ -90,6 +90,31 @@
       .row .word b { font-weight: 700; }
       .empty { color: var(--muted); font-size: 13px; padding: 12px var(--pad); }
 
+      /* Search's delete icon and select mode - see "Search: topics, all words, with delete icon" and the
+         checkboxes/drawer boards on the design canvas */
+      .searchTitleWrap { flex: 1; min-width: 0; }
+      .searchTitleWrap .label { margin-top: 4px; margin-left: 0; }
+      .iconBtn.deleteBtn { color: #b4544f; }
+      .selectHeader { justify-content: space-between; }
+      .textBtn { font-size: 14px; font-weight: 500; color: var(--muted); }
+      .textBtn.strong { font-weight: 600; color: var(--label); }
+      .rowHead.selectRow { justify-content: flex-start; gap: 12px; }
+      .checkbox {
+        flex: none; width: 20px; height: 20px; box-sizing: border-box; border-radius: 5px; border: 1.5px solid #c9c2b0;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .checkbox.checked { border: none; background: #d9cfb2; color: var(--ink); }
+      .deleteDrawer {
+        flex: none; box-sizing: border-box; padding: 22px var(--pad) 26px; background: var(--paper);
+        border-top: 1px solid var(--border); box-shadow: 0 -14px 36px rgba(0, 0, 0, 0.14);
+      }
+      .deleteDrawerWarning { font-size: 14px; line-height: 16px; color: var(--muted); }
+      .deleteDrawerBtn {
+        margin-top: 20px; width: 100%; height: 46px; box-sizing: border-box; display: flex; align-items: center;
+        justify-content: center; gap: 10px; font-size: 15px; font-weight: 500; color: #fff; background: var(--error); border-radius: 10px;
+      }
+      .deleteDrawerBtn:disabled { opacity: 0.5; }
+
       /* today's-word banner: recovers a widget closed without saving - a white, blue-outlined card (matching the
          search field's border) above the library list, gone once the word is saved or the day turns over */
       .todayCard { margin: 16px var(--pad) 0; padding: 14px 16px; background: #fff; border: 1.5px solid var(--cta); border-radius: 12px; }

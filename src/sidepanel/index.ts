@@ -12,12 +12,14 @@ import type { CompactWordRecord } from "../lib/types";
 import {
   ICON_BOOK,
   ICON_CHECK_CIRCLE,
+  ICON_CHECK,
   ICON_BACK,
   ICON_SEARCH,
   ICON_PLUS,
   ICON_SETTINGS,
   ICON_CHEVRON_DOWN,
   ICON_CLOSE_THIN,
+  ICON_TRASH,
 } from "../lib/icons";
 
 const wordStore = createWordStore(chrome.storage.sync);
@@ -32,6 +34,10 @@ type View = "library" | "search" | "save";
 let view: View = "library";
 let searchQuery = "";
 let searchTopic = ALL_TOPICS;
+// Search's multi-select delete flow (word keys are lowercased). Module-level like searchQuery/searchTopic so it
+// survives a re-render triggered by chrome.storage.onChanged while the user is mid-selection.
+let selectMode = false;
+let selectedWords = new Set<string>();
 
 const app = document.getElementById("app") as HTMLDivElement;
 
@@ -62,16 +68,33 @@ async function render(): Promise<void> {
 }
 
 function goTo(next: View): void {
+  if (view === "search" && next !== "search") {
+    selectMode = false;
+    selectedWords.clear();
+  }
   view = next;
   render();
 }
 
-// A saved word is an accordion: one click on the row shows the pronunciation, full meaning and example (read
-// lazily from the local detail cache, falling back to the short meaning). Opening one row closes any other.
-function wordRow(w: CompactWordRecord, highlight = ""): HTMLDivElement {
+// A saved word is normally an accordion: one click on the row shows the pronunciation, full meaning and example
+// (read lazily from the local detail cache, falling back to the short meaning). Opening one row closes any other.
+// In Search's select mode (select != null) the row instead shows a checkbox in place of the chevron, and a click
+// toggles it rather than opening the accordion - see renderSearch's delete flow.
+function wordRow(
+  w: CompactWordRecord,
+  highlight = "",
+  select: { checked: boolean; onToggle: () => void } | null = null
+): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "row";
-  row.innerHTML = `
+  row.innerHTML = select
+    ? `
+    <button class="rowHead selectRow" aria-pressed="${select.checked}">
+      <span class="checkbox ${select.checked ? "checked" : ""}" aria-hidden="true">${select.checked ? ICON_CHECK : ""}</span>
+      <div class="rowText"><div class="word"></div><div class="meaning"></div></div>
+    </button>
+  `
+    : `
     <button class="rowHead" aria-expanded="false">
       <div class="rowText"><div class="word"></div><div class="meaning"></div></div>
       <span class="chev" aria-hidden="true">${ICON_CHEVRON_DOWN}</span>
@@ -88,6 +111,11 @@ function wordRow(w: CompactWordRecord, highlight = ""): HTMLDivElement {
     wordEl.textContent = w.word;
   }
   row.querySelector(".meaning")!.textContent = w.shortMeaning;
+
+  if (select) {
+    (row.querySelector(".rowHead") as HTMLButtonElement).addEventListener("click", select.onToggle);
+    return row;
+  }
 
   const head = row.querySelector(".rowHead") as HTMLButtonElement;
   const body = row.querySelector(".rowBody") as HTMLDivElement;
@@ -281,16 +309,16 @@ async function renderLibrary(all: CompactWordRecord[]): Promise<HTMLDivElement> 
 
 // Search combines the old search and "All saved words": a search field, filter chips that auto-categorise the
 // library by topic, and one list. With All selected the list is flat; picking a chip shows that topic under its title.
+// The header's trash icon turns on select mode: rows show checkboxes instead of chevrons, the header swaps to
+// Cancel / "N selected" / Select all, and a bottom drawer replaces the space below the list with a warning line and
+// a "Delete from library (N)" button - see the finalised "Search - topics, all words, with delete icon" and
+// "Search - checkboxes, delete drawer on the panel background" canvas boards.
 function renderSearch(all: CompactWordRecord[]): HTMLDivElement {
   const panel = document.createElement("div");
   panel.className = "panel";
 
-  const header = backHeader("Search");
-  const total = document.createElement("div");
-  total.className = "label";
-  total.textContent = `${all.length} ${all.length === 1 ? "word" : "words"}`;
-  header.appendChild(total);
-  panel.appendChild(header);
+  const headerSlot = document.createElement("div");
+  panel.appendChild(headerSlot);
 
   const chips = topicChips(all);
   if (searchTopic !== ALL_TOPICS && !chips.some((c) => c.topic === searchTopic)) searchTopic = ALL_TOPICS;
@@ -310,11 +338,77 @@ function renderSearch(all: CompactWordRecord[]): HTMLDivElement {
   `;
   panel.appendChild(body);
 
+  const drawerSlot = document.createElement("div");
+  panel.appendChild(drawerSlot);
+
   const input = body.querySelector(".sInput") as HTMLInputElement;
   const clearBtn = body.querySelector(".clearBtn") as HTMLButtonElement;
   const chipsEl = body.querySelector(".chips") as HTMLDivElement;
   const results = body.querySelector(".results") as HTMLDivElement;
   input.value = searchQuery;
+
+  function currentMatches(): CompactWordRecord[] {
+    return searchWords(all, searchQuery, searchTopic);
+  }
+
+  function renderHeader(): void {
+    headerSlot.innerHTML = "";
+    if (selectMode) {
+      const header = document.createElement("div");
+      header.className = "subHeader selectHeader";
+      header.innerHTML = `
+        <button class="textBtn cancelBtn">Cancel</button>
+        <div class="title"></div>
+        <button class="textBtn strong selectAllBtn"></button>
+      `;
+      header.querySelector(".title")!.textContent = `${selectedWords.size} selected`;
+      const matches = currentMatches();
+      const allSelected = matches.length > 0 && matches.every((w) => selectedWords.has(w.word.toLowerCase()));
+      header.querySelector(".selectAllBtn")!.textContent = allSelected ? "Deselect all" : "Select all";
+      header.querySelector(".cancelBtn")!.addEventListener("click", () => {
+        selectMode = false;
+        selectedWords.clear();
+        renderHeader();
+        renderResults();
+        renderDrawer();
+      });
+      header.querySelector(".selectAllBtn")!.addEventListener("click", () => {
+        if (allSelected) selectedWords.clear();
+        else for (const w of matches) selectedWords.add(w.word.toLowerCase());
+        renderHeader();
+        renderResults();
+        renderDrawer();
+      });
+      headerSlot.appendChild(header);
+    } else {
+      const header = backHeader("Search");
+      // backHeader's own .title is the "Search" heading; wrap it with the count so the two sit in one flexible
+      // column and the delete icon can be pinned to the far right instead of hugging the title.
+      const wrap = document.createElement("div");
+      wrap.className = "searchTitleWrap";
+      wrap.appendChild(header.querySelector(".title") as HTMLElement);
+      const total = document.createElement("div");
+      total.className = "label";
+      total.textContent = `${all.length} ${all.length === 1 ? "word" : "words"}`;
+      wrap.appendChild(total);
+      header.appendChild(wrap);
+      if (all.length > 0) {
+        const delBtn = document.createElement("button");
+        delBtn.className = "iconBtn deleteBtn";
+        delBtn.setAttribute("aria-label", "Select words to delete");
+        delBtn.innerHTML = ICON_TRASH;
+        delBtn.addEventListener("click", () => {
+          selectMode = true;
+          selectedWords.clear();
+          renderHeader();
+          renderResults();
+          renderDrawer();
+        });
+        header.appendChild(delBtn);
+      }
+      headerSlot.appendChild(header);
+    }
+  }
 
   function renderChips(): void {
     chipsEl.innerHTML = "";
@@ -333,13 +427,14 @@ function renderSearch(all: CompactWordRecord[]): HTMLDivElement {
         searchTopic = c.topic;
         renderChips();
         renderResults();
+        if (selectMode) renderHeader(); // "Select all" reflects the narrowed set
       });
       chipsEl.appendChild(btn);
     }
   }
 
   function renderResults(): void {
-    const matches = searchWords(all, searchQuery, searchTopic);
+    const matches = currentMatches();
     results.innerHTML = "";
     results.classList.toggle("titled", searchTopic !== ALL_TOPICS);
     if (all.length === 0) {
@@ -362,25 +457,79 @@ function renderSearch(all: CompactWordRecord[]): HTMLDivElement {
       title.textContent = `${searchTopic} · ${matches.length}`;
       results.appendChild(title);
     }
-    for (const w of matches) results.appendChild(wordRow(w, searchQuery));
+    for (const w of matches) {
+      if (!selectMode) {
+        results.appendChild(wordRow(w, searchQuery));
+        continue;
+      }
+      const key = w.word.toLowerCase();
+      results.appendChild(
+        wordRow(w, searchQuery, {
+          checked: selectedWords.has(key),
+          onToggle: () => {
+            if (selectedWords.has(key)) selectedWords.delete(key);
+            else selectedWords.add(key);
+            renderHeader();
+            renderResults();
+            renderDrawer();
+          },
+        })
+      );
+    }
+  }
+
+  function renderDrawer(): void {
+    drawerSlot.innerHTML = "";
+    drawerSlot.className = "";
+    if (!selectMode) return;
+    drawerSlot.className = "deleteDrawer";
+    drawerSlot.innerHTML = `
+      <div class="deleteDrawerWarning">Removed words can't be recovered.</div>
+      <button class="deleteDrawerBtn">${ICON_TRASH}Delete from library (${selectedWords.size})</button>
+      <div class="err"></div>
+    `;
+    const btn = drawerSlot.querySelector(".deleteDrawerBtn") as HTMLButtonElement;
+    btn.disabled = selectedWords.size === 0;
+    const errEl = drawerSlot.querySelector(".err") as HTMLDivElement;
+    btn.addEventListener("click", async () => {
+      if (selectedWords.size === 0) return;
+      const count = selectedWords.size;
+      errEl.textContent = "";
+      btn.disabled = true;
+      btn.innerHTML = "Deleting…";
+      try {
+        await wordStore.deleteWords([...selectedWords]);
+        selectMode = false;
+        selectedWords.clear();
+        // no manual re-render here - the storage.onChanged listener above re-renders the whole search view
+      } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = `${ICON_TRASH}Delete from library (${count})`;
+        errEl.textContent = e instanceof Error ? e.message : "Couldn't delete those words.";
+      }
+    });
   }
 
   input.addEventListener("input", () => {
     searchQuery = input.value;
     clearBtn.hidden = !searchQuery;
     renderResults();
+    if (selectMode) renderHeader();
   });
   clearBtn.addEventListener("click", () => {
     searchQuery = "";
     input.value = "";
     clearBtn.hidden = true;
     renderResults();
+    if (selectMode) renderHeader();
     input.focus();
   });
   clearBtn.hidden = !searchQuery;
+  renderHeader();
   renderChips();
   renderResults();
-  queueMicrotask(() => input.focus());
+  renderDrawer();
+  if (!selectMode) queueMicrotask(() => input.focus());
 
   return panel;
 }

@@ -27,6 +27,14 @@ export function createWordStore(area: StorageArea) {
     await area.set({ [KEY]: words.filter((w) => w.word.toLowerCase() !== word.toLowerCase()) });
   }
 
+  // Bulk delete (the search view's multi-select) - one read/write instead of one deleteWord() call per
+  // word, so removing several words fires a single storage.onChanged instead of one per word.
+  async function deleteWords(wordsToDelete: string[]): Promise<void> {
+    const lower = new Set(wordsToDelete.map((w) => w.toLowerCase()));
+    const words = await getAllWords();
+    await area.set({ [KEY]: words.filter((w) => !lower.has(w.word.toLowerCase())) });
+  }
+
   async function updateQuizStats(word: string, known: boolean): Promise<void> {
     const words = await getAllWords();
     const updated = words.map((w) =>
@@ -37,5 +45,5 @@ export function createWordStore(area: StorageArea) {
     await area.set({ [KEY]: updated });
   }
 
-  return { getAllWords, saveWord, deleteWord, updateQuizStats };
+  return { getAllWords, saveWord, deleteWord, deleteWords, updateQuizStats };
 }
