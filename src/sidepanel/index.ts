@@ -4,7 +4,7 @@ import { createApiKeyStore } from "../lib/apiKey";
 import { createModelClient } from "../lib/modelClient";
 import { addWord } from "../lib/addWord";
 import { OTHER_TOPIC, type WordExplanation } from "../lib/prompts";
-import { ALL_TOPICS, searchWords, topicChips } from "./search";
+import { ALL_TOPICS, newestFirst, searchWords, topicChips } from "./search";
 import type { CompactWordRecord } from "../lib/types";
 import {
   ICON_BOOK,
@@ -49,7 +49,7 @@ function isThisWeek(record: CompactWordRecord): boolean {
 }
 
 async function render(): Promise<void> {
-  const all = await wordStore.getAllWords();
+  const all = newestFirst(await wordStore.getAllWords());
   app.innerHTML = "";
   if (view === "library") app.appendChild(renderLibrary(all));
   else if (view === "search") app.appendChild(renderSearch(all));

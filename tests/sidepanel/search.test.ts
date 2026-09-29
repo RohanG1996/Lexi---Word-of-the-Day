@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterWords, topicOf, topicChips, searchWords, ALL_TOPICS } from "../../src/sidepanel/search";
+import { filterWords, newestFirst, topicOf, topicChips, searchWords, ALL_TOPICS } from "../../src/sidepanel/search";
 import type { CompactWordRecord } from "../../src/lib/types";
 
 const base = { savedDate: "2026-09-18", source: "manual" as const, quizStats: { seen: 0, known: 0 } };
@@ -10,6 +10,13 @@ const words: CompactWordRecord[] = [
   { ...base, word: "affordance", shortMeaning: "a clue about how something can be used", topic: "Design" },
   { ...base, word: "old word", shortMeaning: "saved before topics existed" },
 ];
+
+describe("newestFirst", () => {
+  it("reverses storage order (oldest-first) to newest-first, without mutating the input", () => {
+    expect(newestFirst(words).map((w) => w.word)).toEqual([...words].reverse().map((w) => w.word));
+    expect(words.map((w) => w.word)).toEqual(["ephemeral", "lucid", "latency", "affordance", "old word"]);
+  });
+});
 
 describe("filterWords", () => {
   it("returns everything for an empty query", () => {

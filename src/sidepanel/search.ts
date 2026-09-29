@@ -3,6 +3,13 @@ import { OTHER_TOPIC } from "../lib/prompts";
 
 export const ALL_TOPICS = "All";
 
+// wordStore.getAllWords() returns words in the order they were saved (oldest
+// first, since saveWord appends); every list in the UI shows the newest
+// saved word first, so callers reverse through this before rendering.
+export function newestFirst(words: CompactWordRecord[]): CompactWordRecord[] {
+  return [...words].reverse();
+}
+
 export function filterWords(words: CompactWordRecord[], query: string): CompactWordRecord[] {
   const q = query.trim().toLowerCase();
   if (!q) return words;
