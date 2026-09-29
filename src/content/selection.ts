@@ -1,5 +1,6 @@
 import { ICON_CLOSE_THIN, ICON_BOOK, ICON_CHECK_CIRCLE } from "../lib/icons";
 import { requestAddWord } from "../lib/messages";
+import { logoMarkSvg } from "../lib/logo";
 import { isLookupCandidate } from "./selectionRules";
 
 const POPOVER_WIDTH = 190;
@@ -45,6 +46,8 @@ function injectStyles(root: ShadowRoot): void {
     .popover.placeLeft .caret { left: auto; right: -6px; border-left: none; border-bottom: none;
       border-right: 1px solid var(--border); border-top: 1px solid var(--border); }
     .row { height: 35px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 14px; border-bottom: 1px solid var(--rule); }
+    .brand { display: flex; align-items: center; gap: 7px; }
+    .brand svg { display: block; }
     .label { font-size: 9px; font-weight: 500; letter-spacing: 0.14em; color: #66615A; text-transform: uppercase; }
     .closeBtn { color: #252525; cursor: pointer; background: none; border: none; padding: 0; display: flex; }
     .closeBtn svg { width: 12px; height: 12px; }
@@ -89,7 +92,7 @@ function showPopover(selectedText: string, rect: DOMRect): void {
   popover.innerHTML = `
     <div class="caret"></div>
     <div class="row">
-      <span class="label">Selected</span>
+      <span class="brand">${logoMarkSvg(18)}<span class="label">Selected</span></span>
       <button class="closeBtn" aria-label="Close">${ICON_CLOSE_THIN}</button>
     </div>
     <div class="word"></div>

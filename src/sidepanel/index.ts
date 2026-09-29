@@ -9,6 +9,10 @@ import { shouldShowTodayWordBanner } from "../lib/trigger";
 import { OTHER_TOPIC, type WordExplanation } from "../lib/prompts";
 import { ALL_TOPICS, newestFirst, searchWords, topicChips } from "./search";
 import type { CompactWordRecord } from "../lib/types";
+import { createProfileStore } from "../lib/profile";
+import { deleteAccountData } from "../lib/account";
+import { requestSignIn, requestShowOnboarding } from "../lib/messages";
+import { renderSettings, SETTINGS_CSS } from "./settings";
 import {
   ICON_BOOK,
   ICON_CHECK_CIRCLE,
@@ -26,10 +30,16 @@ const wordStore = createWordStore(chrome.storage.sync);
 const detailCache = createDetailCache(chrome.storage.local);
 const todayWordStore = createTodayWordStore(chrome.storage.sync);
 const lastShownStore = createLastShownStore(chrome.storage.local);
+const profileStore = createProfileStore(chrome.storage.sync);
 const today = () => new Date().toISOString().slice(0, 10);
 
-// Library -> Search (search + browsing by topic, replacing the old "All saved words" list) or Add a word.
-type View = "library" | "search" | "save";
+// The shared dropdown / goal / industry controls and the Settings view bring their own styles.
+const settingsStyle = document.createElement("style");
+settingsStyle.textContent = SETTINGS_CSS;
+document.head.appendChild(settingsStyle);
+
+// Library -> Search (search + browsing by topic, replacing the old "All saved words" list), Add a word, or Settings.
+type View = "library" | "search" | "save" | "settings";
 
 let view: View = "library";
 let searchQuery = "";
@@ -64,7 +74,28 @@ async function render(): Promise<void> {
   app.innerHTML = "";
   if (view === "library") app.appendChild(await renderLibrary(all));
   else if (view === "search") app.appendChild(renderSearch(all));
+  else if (view === "settings") app.appendChild(await renderSettingsView());
   else app.appendChild(renderSave());
+}
+
+// Settings edits the same profile the onboarding pop-up creates. "Delete account" wipes everything Lexi stores for
+// the user and then re-opens onboarding on the current page.
+async function renderSettingsView(): Promise<HTMLDivElement> {
+  return renderSettings({
+    profile: await profileStore.getProfile(),
+    save: (p) => profileStore.setProfile(p),
+    signIn: requestSignIn,
+    signOut: async () => {
+      await profileStore.updateProfile({ email: "" });
+    },
+    confirmDelete: () => window.confirm("Delete your account and all saved words? This can't be undone."),
+    deleteAccount: () => deleteAccountData(chrome.storage.sync, chrome.storage.local),
+    onBack: () => goTo("library"),
+    onDeleted: () => {
+      requestShowOnboarding().catch(() => {});
+      goTo("library");
+    },
+  });
 }
 
 function goTo(next: View): void {
@@ -267,7 +298,10 @@ async function renderLibrary(all: CompactWordRecord[]): Promise<HTMLDivElement> 
     </div>
   `;
   header.querySelector(".label")!.textContent = `${weekWords.length} saved this week`;
-  header.querySelector(".settingsBtn")!.addEventListener("click", () => chrome.runtime.openOptionsPage());
+  // The name chosen in onboarding titles the library ("Priya's Library"); before that it's just "Your Library".
+  const { name } = await profileStore.getProfile();
+  if (name.trim()) header.querySelector(".name")!.textContent = `${name.trim()}'s Library`;
+  header.querySelector(".settingsBtn")!.addEventListener("click", () => goTo("settings"));
   panel.appendChild(header);
 
   const banner = await renderTodayWordBanner(all);

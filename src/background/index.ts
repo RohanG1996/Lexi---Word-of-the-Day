@@ -5,7 +5,15 @@ import { createTodayWordStore, createLastShownStore } from "../lib/dailyWord";
 import { createModelClient } from "../lib/modelClient";
 import { ensureTodayWord, shouldInjectWidget, markWidgetShown } from "../lib/wordOfDayService";
 import { addWord } from "../lib/addWord";
-import { ADD_WORD_MESSAGE, type AddWordRequest, type AddWordResponse } from "../lib/messages";
+import { createProfileStore, hasArrived, profilePreference } from "../lib/profile";
+import {
+  ADD_WORD_MESSAGE,
+  SIGN_IN_MESSAGE,
+  SHOW_ONBOARDING_MESSAGE,
+  type AddWordRequest,
+  type AddWordResponse,
+  type SignInResponse,
+} from "../lib/messages";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -21,10 +29,27 @@ async function getDeps() {
     detailCache: createDetailCache(chrome.storage.local),
     todayWordStore: createTodayWordStore(chrome.storage.sync),
     lastShownStore: createLastShownStore(chrome.storage.local),
+    profileStore: createProfileStore(chrome.storage.sync),
   };
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+// Shows the first-run onboarding pop-up on the current web page. Extension pages and chrome:// tabs can't be
+// scripted, so when there's no ordinary page to show it on, open Lexi's own welcome tab instead.
+async function showOnboarding(): Promise<void> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab?.id !== undefined && tab.url && /^https?:/.test(tab.url)) {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["onboarding.js"] });
+      return;
+    }
+  } catch (err) {
+    console.error("Lexi: couldn't show onboarding on this page", err);
+  }
+  await chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+}
+
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") showOnboarding();
   // removeAll first so re-registering is idempotent across install/update —
   // on an "update" onInstalled fire, the item from the previous version can
   // still be registered, and a bare create() would reject on the duplicate id.
@@ -75,7 +100,16 @@ async function maybeShowWidget(tabId: number) {
     if (!tab.url || !(tab.url.startsWith("http://") || tab.url.startsWith("https://"))) return;
 
     const deps = await getDeps();
+
+    // Until onboarding is finished it takes the widget's place, so a new tab keeps offering it.
+    const profile = await deps.profileStore.getProfile();
+    if (!profile.onboarded) {
+      await chrome.scripting.executeScript({ target: { tabId }, files: ["onboarding.js"] });
+      return;
+    }
     if (!deps.model) return;
+    // The word is held back until the arrival time chosen in onboarding / Settings.
+    if (!hasArrived(new Date(), profile.arrivalTime)) return;
 
     if (!(await shouldInjectWidget({ lastShownStore: deps.lastShownStore, today: todayISO }))) return;
 
@@ -86,6 +120,7 @@ async function maybeShowWidget(tabId: number) {
       wordStore: deps.wordStore,
       detailCache: deps.detailCache,
       today: todayISO,
+      preference: profilePreference(profile),
     });
 
     await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
@@ -104,6 +139,22 @@ async function maybeShowWidget(tabId: number) {
 // highlight-to-save popover and the widget's save button don't call the
 // model API themselves; they message this listener, which runs the real
 // addWord() call from here instead, where it isn't subject to page CSP.
+chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendResponse: (r: SignInResponse) => void) => {
+  // The onboarding pop-up (a content script) can't use chrome.identity, so it asks here for the account email of
+  // the Google account the browser is signed into. null when the browser isn't signed in.
+  if (message?.type !== SIGN_IN_MESSAGE) return undefined;
+  chrome.identity
+    .getProfileUserInfo({ accountStatus: chrome.identity.AccountStatus.ANY })
+    .then((info) => sendResponse({ ok: true, email: info.email || null }))
+    .catch(() => sendResponse({ ok: true, email: null }));
+  return true;
+});
+
+chrome.runtime.onMessage.addListener((message: { type?: string }) => {
+  if (message?.type === SHOW_ONBOARDING_MESSAGE) showOnboarding();
+  return undefined;
+});
+
 chrome.runtime.onMessage.addListener((message: AddWordRequest, _sender, sendResponse: (r: AddWordResponse) => void) => {
   if (message?.type !== ADD_WORD_MESSAGE || typeof message.word !== "string") return undefined;
   (async () => {

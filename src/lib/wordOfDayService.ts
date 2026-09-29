@@ -22,6 +22,8 @@ export interface WordOfDayDeps {
     setDetail(d: FullWordDetail): Promise<void>;
   };
   today: () => string;
+  // Sentence about the reader's goal/industry (profilePreference); steers the daily pick when set.
+  preference?: string;
 }
 
 // Picks and caches today's word, but does NOT add it to the library - it's only a candidate until the user
@@ -38,7 +40,10 @@ export async function ensureTodayWord(deps: WordOfDayDeps): Promise<TodayWordRec
     .filter((w) => w.source === "daily")
     .map((w) => w.word);
 
-  const word = await deps.model.pickWordOfDay(history);
+  // Only pass a second argument when there is a preference, so callers without a profile behave exactly as before.
+  const word = deps.preference
+    ? await deps.model.pickWordOfDay(history, deps.preference)
+    : await deps.model.pickWordOfDay(history);
   const explanation = await deps.model.explainWord(word);
 
   await deps.detailCache.setDetail({

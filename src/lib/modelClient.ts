@@ -9,7 +9,7 @@ export type { WordExplanation };
 
 export interface ModelClient {
   explainWord(word: string): Promise<WordExplanation>;
-  pickWordOfDay(previousWords: string[]): Promise<string>;
+  pickWordOfDay(previousWords: string[], preference?: string): Promise<string>;
 }
 
 type Caller = (apiKey: string, prompt: string) => Promise<string>;
@@ -26,8 +26,8 @@ export function createModelClient(provider: Provider, apiKey: string): ModelClie
     async explainWord(word: string) {
       return parseExplainResponse(await call(apiKey, buildExplainPrompt(word)));
     },
-    async pickWordOfDay(previousWords: string[]) {
-      return parseWordOfDayResponse(await call(apiKey, buildWordOfDayPrompt(previousWords)));
+    async pickWordOfDay(previousWords: string[], preference?: string) {
+      return parseWordOfDayResponse(await call(apiKey, buildWordOfDayPrompt(previousWords, preference)));
     },
   };
 }

@@ -7,6 +7,7 @@ await build({
   entryPoints: {
     background: "src/background/index.ts",
     content: "src/content/index.ts",
+    onboarding: "src/content/onboardingEntry.ts",
     selection: "src/content/selection.ts",
     sidepanel: "src/sidepanel/index.ts",
     options: "src/options/index.ts",
@@ -20,5 +21,7 @@ await build({
 cpSync("manifest.json", "dist/manifest.json");
 cpSync("src/sidepanel/index.html", "dist/sidepanel.html");
 cpSync("src/options/index.html", "dist/options.html");
+cpSync("src/onboarding/welcome.html", "dist/welcome.html");
+cpSync("icons", "dist/icons", { recursive: true });
 
 console.log("Built to dist/");

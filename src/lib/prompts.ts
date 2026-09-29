@@ -34,11 +34,13 @@ export function parseExplainResponse(raw: string): WordExplanation {
   };
 }
 
-export function buildWordOfDayPrompt(previousWords: string[]): string {
+// `preference` is an optional sentence about the reader (their goal / industry, see profilePreference) that steers the pick.
+export function buildWordOfDayPrompt(previousWords: string[], preference?: string): string {
   const exclude = previousWords.length
     ? ` Avoid these already-used words: ${previousWords.join(", ")}.`
     : "";
-  return `Pick one interesting English word suitable for a "word of the day" feature (moderately advanced, not obscure jargon).${exclude} Respond as JSON: {"word": "..."}. No other text.`;
+  const audience = preference ? ` ${preference} Choose a word that suits them.` : "";
+  return `Pick one interesting English word suitable for a "word of the day" feature (moderately advanced, not obscure jargon).${audience}${exclude} Respond as JSON: {"word": "..."}. No other text.`;
 }
 
 export function parseWordOfDayResponse(raw: string): string {
