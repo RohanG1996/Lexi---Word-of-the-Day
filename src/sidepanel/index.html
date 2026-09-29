@@ -109,10 +109,11 @@
         font-size: 15px; font-weight: 500; color: #2b2822; background: var(--btn); border-radius: 10px;
       }
       .primaryBtn svg { width: 19px; height: 19px; }
-      .err, .success { margin: 4px var(--pad) 8px; font-size: 12px; }
+      .primaryBtn:disabled { opacity: 0.75; }
+      .primaryBtn.saved { color: var(--success); background: #F3EFE3; border: 1.5px solid rgba(79, 112, 83, 0.45); font-weight: 600; }
+      .err { margin: 4px var(--pad) 8px; font-size: 12px; }
       .err { color: var(--error); }
       .err:empty { display: none; }
-      .success { color: var(--success); font-weight: 600; }
 
       .preview { margin: 14px var(--pad) 0; padding-top: 6px; border-top: 1px solid var(--rule); }
       .preview .label.section { padding: 12px 0 6px; }

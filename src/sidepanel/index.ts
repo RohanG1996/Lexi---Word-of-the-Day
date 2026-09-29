@@ -8,6 +8,7 @@ import { ALL_TOPICS, searchWords, topicChips } from "./search";
 import type { CompactWordRecord } from "../lib/types";
 import {
   ICON_BOOK,
+  ICON_CHECK_CIRCLE,
   ICON_BACK,
   ICON_SEARCH,
   ICON_PLUS,
@@ -324,19 +325,23 @@ function renderSave(): HTMLDivElement {
       <div class="pexample"></div>
     </div>
     <button class="primaryBtn" hidden>${ICON_BOOK}Add to my library</button>
-    <div class="success" hidden></div>
   `;
   panel.appendChild(body);
 
   const input = body.querySelector("input") as HTMLInputElement;
   const addBtn = body.querySelector(".primaryBtn") as HTMLButtonElement;
   const errEl = body.querySelector(".err") as HTMLDivElement;
-  const successEl = body.querySelector(".success") as HTMLDivElement;
   const preview = body.querySelector(".preview") as HTMLDivElement;
 
   let previewWord: string | null = null;
   let previewExplanation: WordExplanation | null = null;
   let previewTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function resetAddBtn(): void {
+    addBtn.disabled = false;
+    addBtn.classList.remove("saved");
+    addBtn.innerHTML = `${ICON_BOOK}Add to my library`;
+  }
 
   function showPreview(word: string, e: Pick<WordExplanation, "meaning" | "example" | "pronunciation" | "partOfSpeech">): void {
     preview.hidden = false;
@@ -389,7 +394,7 @@ function renderSave(): HTMLDivElement {
 
   input.addEventListener("input", () => {
     hidePreview();
-    successEl.hidden = true;
+    resetAddBtn();
     previewWord = null;
     previewExplanation = null;
     if (previewTimer) clearTimeout(previewTimer);
@@ -402,13 +407,14 @@ function renderSave(): HTMLDivElement {
 
   addBtn.addEventListener("click", async () => {
     errEl.textContent = "";
-    successEl.hidden = true;
     const word = input.value.trim();
     const settings = await createApiKeyStore(chrome.storage.local).getSettings();
     if (!settings) {
       errEl.textContent = "Add your API key in Options first.";
       return;
     }
+    addBtn.disabled = true;
+    addBtn.innerHTML = "Saving…";
     try {
       let record: CompactWordRecord;
       if (previewWord && previewExplanation && previewWord.toLowerCase() === word.toLowerCase()) {
@@ -446,13 +452,13 @@ function renderSave(): HTMLDivElement {
         pronunciation: detail?.pronunciation ?? "",
         partOfSpeech: detail?.partOfSpeech ?? "",
       });
-      addBtn.hidden = true; // already added - nothing more to press
-      successEl.hidden = false;
-      successEl.textContent = `${record.word} — added to your library`;
+      addBtn.classList.add("saved");
+      addBtn.innerHTML = `${ICON_CHECK_CIRCLE}Added to my library`; // stays disabled - already added, nothing more to press
       input.value = "";
       previewWord = null;
       previewExplanation = null;
     } catch (e) {
+      resetAddBtn();
       errEl.textContent = e instanceof Error ? e.message : "Couldn't add that word.";
     }
   });

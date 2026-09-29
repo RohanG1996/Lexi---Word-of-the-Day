@@ -1,5 +1,5 @@
 import { ICON_CLOSE_THIN, ICON_BOOK, ICON_CHECK_CIRCLE } from "../lib/icons";
-import { ADD_WORD_MESSAGE, type AddWordResponse } from "../lib/messages";
+import { requestAddWord } from "../lib/messages";
 import { isLookupCandidate } from "./selectionRules";
 
 const POPOVER_WIDTH = 190;
@@ -106,10 +106,7 @@ function showPopover(selectedText: string, rect: DOMRect): void {
     actionBtn.disabled = true;
     actionBtn.innerHTML = "Saving…";
     try {
-      const response = (await chrome.runtime.sendMessage({
-        type: ADD_WORD_MESSAGE,
-        word: selectedText,
-      })) as AddWordResponse | undefined;
+      const response = await requestAddWord(selectedText);
       if (!response?.ok) throw new Error(response?.error ?? "Couldn't save that word.");
       actionBtn.classList.add("saved");
       actionBtn.innerHTML = `${ICON_CHECK_CIRCLE}Added to my library`;

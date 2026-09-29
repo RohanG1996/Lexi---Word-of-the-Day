@@ -1,7 +1,7 @@
 import { mountWidget } from "./widget";
 import { createTodayWordStore } from "../lib/dailyWord";
 import { createDetailCache } from "../lib/cache";
-import { ADD_WORD_MESSAGE, type AddWordResponse } from "../lib/messages";
+import { requestAddWord } from "../lib/messages";
 
 async function main() {
   const todayWordStore = createTodayWordStore(chrome.storage.sync);
@@ -23,10 +23,7 @@ async function main() {
     },
     {
       async onSave() {
-        const response = (await chrome.runtime.sendMessage({
-          type: ADD_WORD_MESSAGE,
-          word: today.word,
-        })) as AddWordResponse | undefined;
+        const response = await requestAddWord(today.word);
         if (!response?.ok) throw new Error(response?.error ?? "Couldn't save that word.");
       },
     }
