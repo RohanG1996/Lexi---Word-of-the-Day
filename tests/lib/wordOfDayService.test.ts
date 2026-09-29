@@ -3,7 +3,7 @@ import { createWordStore } from "../../src/lib/storage";
 import { createDetailCache } from "../../src/lib/cache";
 import { createTodayWordStore, createLastShownStore } from "../../src/lib/dailyWord";
 import { createFakeStorageArea } from "../mocks/fakeStorageArea";
-import { ensureTodayWord, shouldInjectWidget, markWidgetShown } from "../../src/lib/wordOfDayService";
+import { ensureTodayWord, saveTodayWord, shouldInjectWidget, markWidgetShown } from "../../src/lib/wordOfDayService";
 import type { ModelClient } from "../../src/lib/modelClient";
 
 function makeDeps(today: string) {
@@ -32,12 +32,13 @@ function makeDeps(today: string) {
 }
 
 describe("ensureTodayWord", () => {
-  it("picks and saves a new word the first time it's called that day", async () => {
+  it("picks and caches a new word the first time it's called that day, without saving it to the library", async () => {
     const deps = makeDeps("2026-09-19");
     const result = await ensureTodayWord(deps);
-    expect(result).toEqual({ date: "2026-09-19", word: "lucid" });
+    expect(result).toEqual({ date: "2026-09-19", word: "lucid", topic: "Everyday" });
     expect(deps.model.pickWordOfDay).toHaveBeenCalledOnce();
-    expect((await deps.wordStore.getAllWords())[0].source).toBe("daily");
+    expect(await deps.wordStore.getAllWords()).toEqual([]);
+    expect(await deps.detailCache.getDetail("lucid")).toMatchObject({ meaning: "clear-headed" });
   });
 
   it("does not call the model again the same day", async () => {
@@ -65,6 +66,30 @@ describe("ensureTodayWord", () => {
     });
     await ensureTodayWord(deps);
     expect(deps.model.pickWordOfDay).toHaveBeenCalledWith(["ephemeral"]);
+  });
+});
+
+describe("saveTodayWord", () => {
+  it("saves the cached word of the day to the library, with source daily and its topic", async () => {
+    const deps = makeDeps("2026-09-19");
+    await ensureTodayWord(deps);
+    const record = await saveTodayWord(deps);
+    expect(record).toMatchObject({ word: "lucid", source: "daily", topic: "Everyday", shortMeaning: "clear-headed" });
+    expect(await deps.wordStore.getAllWords()).toHaveLength(1);
+  });
+
+  it("is idempotent - saving twice doesn't duplicate or re-call the model", async () => {
+    const deps = makeDeps("2026-09-19");
+    await ensureTodayWord(deps);
+    await saveTodayWord(deps);
+    await saveTodayWord(deps);
+    expect(await deps.wordStore.getAllWords()).toHaveLength(1);
+    expect(deps.model.explainWord).toHaveBeenCalledOnce();
+  });
+
+  it("throws if there's no word of the day yet", async () => {
+    const deps = makeDeps("2026-09-19");
+    await expect(saveTodayWord(deps)).rejects.toThrow("no word of the day");
   });
 });
 

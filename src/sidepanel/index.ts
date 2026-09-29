@@ -3,6 +3,9 @@ import { createDetailCache } from "../lib/cache";
 import { createApiKeyStore } from "../lib/apiKey";
 import { createModelClient } from "../lib/modelClient";
 import { addWord } from "../lib/addWord";
+import { createTodayWordStore, createLastShownStore } from "../lib/dailyWord";
+import { saveTodayWord } from "../lib/wordOfDayService";
+import { shouldShowTodayWordBanner } from "../lib/trigger";
 import { OTHER_TOPIC, type WordExplanation } from "../lib/prompts";
 import { ALL_TOPICS, newestFirst, searchWords, topicChips } from "./search";
 import type { CompactWordRecord } from "../lib/types";
@@ -19,6 +22,8 @@ import {
 
 const wordStore = createWordStore(chrome.storage.sync);
 const detailCache = createDetailCache(chrome.storage.local);
+const todayWordStore = createTodayWordStore(chrome.storage.sync);
+const lastShownStore = createLastShownStore(chrome.storage.local);
 const today = () => new Date().toISOString().slice(0, 10);
 
 // Library -> Search (search + browsing by topic, replacing the old "All saved words" list) or Add a word.
@@ -51,7 +56,7 @@ function isThisWeek(record: CompactWordRecord): boolean {
 async function render(): Promise<void> {
   const all = newestFirst(await wordStore.getAllWords());
   app.innerHTML = "";
-  if (view === "library") app.appendChild(renderLibrary(all));
+  if (view === "library") app.appendChild(await renderLibrary(all));
   else if (view === "search") app.appendChild(renderSearch(all));
   else app.appendChild(renderSave());
 }
@@ -143,7 +148,80 @@ function backHeader(title: string): HTMLDivElement {
   return header;
 }
 
-function renderLibrary(all: CompactWordRecord[]): HTMLDivElement {
+// The today's-word banner: a fallback for a widget closed without saving. Shown only once the widget has had its
+// one shot for the day and the word is still unsaved (shouldShowTodayWordBanner); disappears on its own once the
+// word is added (the chrome.storage.onChanged listener above re-renders the library) or once the day turns over.
+async function renderTodayWordBanner(all: CompactWordRecord[]): Promise<HTMLDivElement | null> {
+  const record = await todayWordStore.getTodayWord();
+  if (!record) return null;
+
+  const alreadySaved = all.some((w) => w.word.toLowerCase() === record.word.toLowerCase());
+  const show = shouldShowTodayWordBanner({
+    todayWordDate: record.date,
+    currentDate: today(),
+    lastShownDate: await lastShownStore.getLastShownDate(),
+    alreadySaved,
+  });
+  if (!show) return null;
+
+  const detail = await detailCache.getDetail(record.word);
+
+  const wrap = document.createElement("div");
+  wrap.className = "todayBanner";
+  wrap.innerHTML = `
+    <div class="todayCard">
+      <div class="todayHead">
+        <div class="todayInfo">
+          <div class="todayLabel">Word of the day</div>
+          <div class="todayWord"></div>
+          <div class="todayPron"></div>
+        </div>
+        <button class="todayAddBtn">${ICON_PLUS}Add</button>
+      </div>
+      <div class="todayMeaning"></div>
+      <div class="todayExLabel" hidden>Example</div>
+      <div class="todayEx" hidden></div>
+    </div>
+    <div class="todayCaption">Add the word to your library before the day ends.</div>
+    <div class="err"></div>
+  `;
+  wrap.querySelector(".todayWord")!.textContent = record.word;
+  const pronEl = wrap.querySelector(".todayPron") as HTMLElement;
+  pronEl.textContent = detail?.pronunciation ?? "";
+  if (detail?.partOfSpeech) {
+    const pos = document.createElement("i");
+    pos.textContent = detail.partOfSpeech;
+    pronEl.appendChild(pos);
+  }
+  wrap.querySelector(".todayMeaning")!.textContent = detail?.meaning ?? "";
+  if (detail?.example) {
+    (wrap.querySelector(".todayExLabel") as HTMLElement).hidden = false;
+    const exEl = wrap.querySelector(".todayEx") as HTMLElement;
+    exEl.hidden = false;
+    exEl.textContent = detail.example;
+  }
+
+  const addBtn = wrap.querySelector(".todayAddBtn") as HTMLButtonElement;
+  const errEl = wrap.querySelector(".err") as HTMLDivElement;
+  addBtn.addEventListener("click", async () => {
+    errEl.textContent = "";
+    addBtn.disabled = true;
+    addBtn.innerHTML = "Saving…";
+    try {
+      await saveTodayWord({ todayWordStore, wordStore, detailCache, today });
+      // no manual re-render here - saveWord's write to lexi.words fires the storage.onChanged
+      // listener above, which re-renders the library and drops the banner (alreadySaved is now true).
+    } catch (e) {
+      addBtn.disabled = false;
+      addBtn.innerHTML = `${ICON_PLUS}Add`;
+      errEl.textContent = e instanceof Error ? e.message : "Couldn't add that word.";
+    }
+  });
+
+  return wrap;
+}
+
+async function renderLibrary(all: CompactWordRecord[]): Promise<HTMLDivElement> {
   const panel = document.createElement("div");
   panel.className = "panel";
 
@@ -163,6 +241,9 @@ function renderLibrary(all: CompactWordRecord[]): HTMLDivElement {
   header.querySelector(".label")!.textContent = `${weekWords.length} saved this week`;
   header.querySelector(".settingsBtn")!.addEventListener("click", () => chrome.runtime.openOptionsPage());
   panel.appendChild(header);
+
+  const banner = await renderTodayWordBanner(all);
+  if (banner) panel.appendChild(banner);
 
   const sectionLabel = document.createElement("div");
   sectionLabel.className = "label section";

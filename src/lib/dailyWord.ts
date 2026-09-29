@@ -6,6 +6,9 @@ const LAST_SHOWN_KEY = "lexi.lastShownDate"; // local — per device
 export interface TodayWordRecord {
   date: string;
   word: string;
+  // Carried here (rather than looked up again) because the word isn't written to wordStore until it's actually
+  // saved - see saveTodayWord() in wordOfDayService.ts.
+  topic?: string;
 }
 
 export function createTodayWordStore(syncArea: StorageArea) {

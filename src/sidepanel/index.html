@@ -90,6 +90,24 @@
       .row .word b { font-weight: 700; }
       .empty { color: var(--muted); font-size: 13px; padding: 12px var(--pad); }
 
+      /* today's-word banner: recovers a widget closed without saving - a white, blue-outlined card (matching the
+         search field's border) above the library list, gone once the word is saved or the day turns over */
+      .todayCard { margin: 16px var(--pad) 0; padding: 14px 16px; background: #fff; border: 1.5px solid var(--cta); border-radius: 12px; }
+      .todayHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+      .todayInfo { min-width: 0; flex: 1; }
+      .todayLabel { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--label); }
+      .todayWord { margin-top: 4px; font-family: var(--serif); font-size: 26px; line-height: 29px; font-weight: 500; }
+      .todayPron { margin-top: 2px; font-family: var(--serif); font-size: 13px; letter-spacing: 0.03em; color: var(--muted); }
+      .todayPron i { margin-left: 10px; }
+      .todayAddBtn { flex: none; height: 34px; margin-top: 2px; padding: 0 14px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #2b2822; background: var(--btn); border-radius: 8px; white-space: nowrap; }
+      .todayAddBtn svg { width: 15px; height: 15px; }
+      .todayAddBtn:hover:not(:disabled) { background: var(--btn-hover); }
+      .todayAddBtn:disabled { opacity: 0.75; }
+      .todayMeaning { margin-top: 10px; font-family: var(--serif); font-size: 15px; line-height: 21px; font-weight: 500; letter-spacing: 0.01em; color: var(--ink-body); }
+      .todayExLabel { margin-top: 12px; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+      .todayEx { margin-top: 4px; font-family: var(--serif); font-size: 14px; line-height: 20px; font-style: italic; font-weight: 500; color: var(--ink-quote); }
+      .todayCaption { margin: 6px var(--pad) 0; padding: 0 4px; font-size: 12px; line-height: 16px; color: #8b8579; }
+
       .footer { flex: none; height: 84px; padding: 0 var(--pad); border-top: 1px solid var(--rule); display: flex; align-items: center; gap: 12px; }
       .pillBtn {
         flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; white-space: nowrap;
