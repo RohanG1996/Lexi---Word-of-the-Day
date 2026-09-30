@@ -131,7 +131,18 @@
       .todayMeaning { margin-top: 10px; font-family: var(--serif); font-size: 15px; line-height: 21px; font-weight: 500; letter-spacing: 0.01em; color: var(--ink-body); }
       .todayExLabel { margin-top: 12px; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
       .todayEx { margin-top: 4px; font-family: var(--serif); font-size: 14px; line-height: 20px; font-style: italic; font-weight: 500; color: var(--ink-quote); }
-      .todayCaption { margin: 6px var(--pad) 0; padding: 0 4px; font-size: 12px; line-height: 16px; color: #8b8579; }
+      /* the caption carries a hairline divider and 18px of space under it, so words scrolling up the list under the
+         banner never run into its text */
+      .todayCaption { margin: 6px var(--pad) 0; padding: 0 4px 18px; font-size: 12px; line-height: 16px; color: #8b8579; border-bottom: 1px solid var(--rule); }
+      /* shown for 5 seconds in place of the banner once the word is added - same green as the other "saved" states */
+      .addedCard { margin: 16px var(--pad) 0; padding: 14px 16px; display: flex; align-items: center; gap: 12px; background: #F3EFE3; border: 1.5px solid rgba(79, 112, 83, 0.45); border-radius: 12px; color: var(--success); }
+      .addedIcon { flex: none; display: flex; }
+      .addedIcon svg { width: 24px; height: 24px; }
+      .addedTitle { font-size: 14px; font-weight: 600; line-height: 18px; }
+      .addedSub { margin-top: 2px; font-size: 12px; line-height: 16px; color: var(--muted); }
+      .addedWord { font-family: var(--serif); font-size: 15px; font-weight: 500; color: var(--ink); }
+      /* no caption or divider under the confirmation: just 6px extra so "This week" sits 22px below the card, as on the board */
+      .addedGap { height: 6px; }
 
       .footer { flex: none; height: 84px; padding: 0 var(--pad); border-top: 1px solid var(--rule); display: flex; align-items: center; gap: 12px; }
       .pillBtn {

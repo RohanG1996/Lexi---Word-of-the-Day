@@ -207,10 +207,53 @@ function backHeader(title: string): HTMLDivElement {
   return header;
 }
 
+// After "Add" on the today's-word banner, a confirmation card takes the banner's place for a few seconds (long
+// enough to notice the word landed in the list) and then the space closes. Module-level like searchQuery, so it
+// survives the re-render the save itself triggers.
+const ADDED_CONFIRMATION_MS = 5000;
+let justAdded: string | null = null;
+let justAddedTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearAddedConfirmation(): void {
+  justAdded = null;
+  if (justAddedTimer) clearTimeout(justAddedTimer);
+  justAddedTimer = null;
+}
+
+function showAddedConfirmation(word: string): void {
+  clearAddedConfirmation();
+  justAdded = word;
+  justAddedTimer = setTimeout(() => {
+    justAdded = null;
+    justAddedTimer = null;
+    if (view === "library") render();
+  }, ADDED_CONFIRMATION_MS);
+}
+
+function renderAddedConfirmation(word: string): HTMLDivElement {
+  const wrap = document.createElement("div");
+  wrap.className = "todayBanner";
+  wrap.innerHTML = `
+    <div class="addedCard" role="status">
+      <span class="addedIcon" aria-hidden="true">${ICON_CHECK_CIRCLE}</span>
+      <div>
+        <div class="addedTitle">Added to your library</div>
+        <div class="addedSub"><span class="addedWord"></span> is now in this week's list.</div>
+      </div>
+    </div>
+    <div class="addedGap"></div>
+  `;
+  wrap.querySelector(".addedWord")!.textContent = word;
+  return wrap;
+}
+
 // The today's-word banner: a fallback for a widget closed without saving. Shown only once the widget has had its
 // one shot for the day and the word is still unsaved (shouldShowTodayWordBanner); disappears on its own once the
 // word is added (the chrome.storage.onChanged listener above re-renders the library) or once the day turns over.
 async function renderTodayWordBanner(all: CompactWordRecord[]): Promise<HTMLDivElement | null> {
+  // Just added: show the confirmation instead of the banner until it times out (see showAddedConfirmation).
+  if (justAdded) return renderAddedConfirmation(justAdded);
+
   const record = await todayWordStore.getTodayWord();
   if (!record) return null;
 
@@ -267,10 +310,12 @@ async function renderTodayWordBanner(all: CompactWordRecord[]): Promise<HTMLDivE
     addBtn.disabled = true;
     addBtn.innerHTML = "Saving…";
     try {
+      // Start the confirmation BEFORE saving: saveWord's write to lexi.words fires the storage.onChanged listener
+      // above, whose re-render then already shows the confirmation instead of dropping the banner outright.
+      showAddedConfirmation(record.word);
       await saveTodayWord({ todayWordStore, wordStore, detailCache, today });
-      // no manual re-render here - saveWord's write to lexi.words fires the storage.onChanged
-      // listener above, which re-renders the library and drops the banner (alreadySaved is now true).
     } catch (e) {
+      clearAddedConfirmation();
       addBtn.disabled = false;
       addBtn.innerHTML = `${ICON_PLUS}Add`;
       errEl.textContent = e instanceof Error ? e.message : "Couldn't add that word.";
