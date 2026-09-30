@@ -88,6 +88,26 @@
       .results { margin-top: 28px; }
       .results.titled { margin-top: 20px; }
       .row .word b { font-weight: 700; }
+      /* empty state for a new user (nothing saved at all) */
+      .emptyState { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 36px 40px; }
+      .emptyArt svg { width: 232px; height: auto; }
+      .emptyBrand { margin-top: 28px; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+      .emptyTitle { margin: 8px 0 0; font-family: var(--serif); font-size: 32px; line-height: 36px; font-weight: 500; color: var(--ink); }
+      .emptyText { margin: 12px 0 0; font-size: 14px; line-height: 21px; color: var(--ink-quote); }
+      .emptyCta {
+        margin-top: 24px; height: 46px; display: flex; align-items: center; gap: 8px; padding: 0 22px; white-space: nowrap;
+        font-size: 14px; font-weight: 600; color: #2b2822; background: var(--btn); border-radius: 10px;
+      }
+      .emptyCta:hover { background: var(--btn-hover); }
+      .emptyCta svg { width: 18px; height: 18px; }
+      .emptyHint { margin-top: 14px; font-size: 12px; line-height: 16px; color: var(--muted); }
+      .emptyState.compact { padding-bottom: 28px; }
+      .emptyState.compact .emptyArt svg { width: 168px; }
+      .emptyState.compact .emptyBrand { display: none; }
+      .emptyState.compact .emptyTitle { margin-top: 20px; font-size: 28px; line-height: 32px; }
+      .emptyState.compact .emptyText { margin-top: 10px; }
+      .emptyState.compact .emptyCta { margin-top: 18px; }
+      .emptyState.compact .emptyHint { display: none; }
       .empty { color: var(--muted); font-size: 13px; padding: 12px var(--pad); }
 
       /* Search's delete icon and select mode - see "Search: topics, all words, with delete icon" and the

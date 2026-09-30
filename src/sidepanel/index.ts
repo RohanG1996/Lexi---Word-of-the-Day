@@ -3,7 +3,8 @@ import { createDetailCache } from "../lib/cache";
 import { createApiKeyStore } from "../lib/apiKey";
 import { createModelClient } from "../lib/modelClient";
 import { addWord } from "../lib/addWord";
-import { createTodayWordStore, createLastShownStore } from "../lib/dailyWord";
+import { createTodayWordStore } from "../lib/dailyWord";
+import { createWidgetStateStore, WIDGET_STATE_KEY } from "../lib/widgetState";
 import { saveTodayWord } from "../lib/wordOfDayService";
 import { shouldShowTodayWordBanner } from "../lib/trigger";
 import { OTHER_TOPIC, type WordExplanation } from "../lib/prompts";
@@ -30,7 +31,7 @@ import {
 const wordStore = createWordStore(chrome.storage.sync);
 const detailCache = createDetailCache(chrome.storage.local);
 const todayWordStore = createTodayWordStore(chrome.storage.sync);
-const lastShownStore = createLastShownStore(chrome.storage.local);
+const widgetStateStore = createWidgetStateStore(chrome.storage.local);
 const profileStore = createProfileStore(chrome.storage.sync);
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -56,8 +57,11 @@ const app = document.getElementById("app") as HTMLDivElement;
 // writes to this same chrome.storage.sync key from a different context - keep
 // the library and search views live instead of requiring a re-open.
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "sync" || !changes["lexi.words"]) return;
-  if (view === "library" || view === "search") render();
+  const wordsChanged = areaName === "sync" && changes["lexi.words"];
+  // The today's-word banner follows the widget: it appears when the widget is closed and goes when it reopens.
+  const widgetChanged = areaName === "local" && changes[WIDGET_STATE_KEY];
+  if (!wordsChanged && !widgetChanged) return;
+  if (view === "library" || (view === "search" && wordsChanged)) render();
 });
 
 function daysAgo(days: number): Date {
@@ -286,8 +290,34 @@ function renderAddedConfirmation(word: string): HTMLDivElement {
   return wrap;
 }
 
-// The today's-word banner: a fallback for a widget closed without saving. Shown only once the widget has had its
-// one shot for the day and the word is still unsaved (shouldShowTodayWordBanner); disappears on its own once the
+const EMPTY_ART = `<svg viewBox="0 0 240 150" role="img" aria-label="A ruled notebook card with one word highlighted">
+  <rect x="1" y="1" width="238" height="148" rx="10" fill="#fff" stroke="rgba(110,155,215,0.55)" stroke-width="1.5"/>
+  <line x1="36" y1="1" x2="36" y2="149" stroke="rgba(214,100,96,0.75)" stroke-width="1.5"/>
+  <g stroke="rgba(110,155,215,0.35)" stroke-width="1"><line x1="1" y1="44" x2="239" y2="44"/><line x1="1" y1="74" x2="239" y2="74"/><line x1="1" y1="104" x2="239" y2="104"/><line x1="1" y1="134" x2="239" y2="134"/></g>
+  <rect x="52" y="20" width="98" height="24" rx="3" fill="#f3e3a6"/>
+  <text x="56" y="39" font-family="Cormorant Garamond, Georgia, serif" font-size="21" font-weight="500" fill="#171717">serendipity</text>
+  <rect x="160" y="27" width="64" height="7" rx="3.5" fill="rgba(23,23,23,0.1)"/>
+  <path transform="translate(112 52)" d="M0 0 L0 15 L4 11.5 L7 18 L10 16.5 L7 10.5 L12.5 10.5 Z" fill="#171717" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+</svg>`;
+
+// Compact when the today's-word banner is above it, so both fit without scrolling.
+function renderEmptyState(compact: boolean, onAdd: () => void): HTMLDivElement {
+  const wrap = document.createElement("div");
+  wrap.className = compact ? "emptyState compact" : "emptyState";
+  wrap.innerHTML = `
+    <div class="emptyArt">${EMPTY_ART}</div>
+    <div class="emptyBrand">Lexi</div>
+    <h1 class="emptyTitle">Never forget a word you see.</h1>
+    <p class="emptyText">Highlight any word on a page and Lexi keeps it here, with its meaning and an example.</p>
+    <button class="emptyCta">${ICON_PLUS}Add your first word</button>
+    <div class="emptyHint">or highlight a word on any page</div>
+  `;
+  wrap.querySelector(".emptyCta")!.addEventListener("click", onAdd);
+  return wrap;
+}
+
+// The today's-word banner: a fallback for a widget closed without saving. Shown only while the widget is closed
+// and the word is still unsaved (shouldShowTodayWordBanner); disappears on its own once the
 // word is added (the chrome.storage.onChanged listener above re-renders the library) or once the day turns over.
 async function renderTodayWordBanner(all: CompactWordRecord[]): Promise<HTMLDivElement | null> {
   // Just added: show the confirmation instead of the banner until it times out (see showAddedConfirmation).
@@ -300,7 +330,7 @@ async function renderTodayWordBanner(all: CompactWordRecord[]): Promise<HTMLDivE
   const show = shouldShowTodayWordBanner({
     todayWordDate: record.date,
     currentDate: today(),
-    lastShownDate: await lastShownStore.getLastShownDate(),
+    widgetState: await widgetStateStore.getState(),
     alreadySaved,
   });
   if (!show) return null;
@@ -369,6 +399,7 @@ async function renderLibrary(all: CompactWordRecord[]): Promise<HTMLDivElement> 
   panel.className = "panel";
 
   const weekWords = all.filter(isThisWeek);
+  const isNewUser = all.length === 0;
 
   const header = document.createElement("div");
   header.className = "header";
@@ -381,7 +412,7 @@ async function renderLibrary(all: CompactWordRecord[]): Promise<HTMLDivElement> 
       <button class="iconBtn settingsBtn" aria-label="Settings">${ICON_SETTINGS}</button>
     </div>
   `;
-  header.querySelector(".label")!.textContent = `${weekWords.length} saved this week`;
+  header.querySelector(".label")!.textContent = isNewUser ? "Nothing saved yet" : `${weekWords.length} saved this week`;
   // The name chosen in onboarding titles the library ("Priya's Library"); before that it's just "Your Library".
   const { name } = await profileStore.getProfile();
   if (name.trim()) header.querySelector(".name")!.textContent = `${name.trim()}'s Library`;
@@ -390,6 +421,13 @@ async function renderLibrary(all: CompactWordRecord[]): Promise<HTMLDivElement> 
 
   const banner = await renderTodayWordBanner(all);
   if (banner) panel.appendChild(banner);
+
+  // Nothing saved yet: the finalised "Side panel - empty state (new user)" board. Its own button replaces the
+  // Search / Add a word footer, which has nothing to search yet.
+  if (isNewUser) {
+    panel.appendChild(renderEmptyState(Boolean(banner), () => goTo("save")));
+    return panel;
+  }
 
   const sectionLabel = document.createElement("div");
   sectionLabel.className = "label section";
