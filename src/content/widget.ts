@@ -57,9 +57,11 @@ const CSS = `
     from { opacity: 0; transform: scale(0.9); }
     to { opacity: 1; transform: none; }
   }
-  .card:not(.enter) { transform-origin: top right; animation: lexiUnfold 240ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
-  .pill { transform-origin: top right; animation: lexiPillIn 200ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
-  @media (prefers-reduced-motion: reduce) { .card.enter, .card:not(.enter), .pill { animation: none; } }
+  /* only when the widget changes shape (.unfold / .settle) - a page simply loading with the widget already there
+     shows it as it is, with no animation */
+  .card.unfold { transform-origin: top right; animation: lexiUnfold 240ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
+  .pill.settle { transform-origin: top right; animation: lexiPillIn 200ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
+  @media (prefers-reduced-motion: reduce) { .card.enter, .card.unfold, .pill.settle { animation: none; } }
 
   button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
   button:focus-visible { outline: 1.5px solid var(--line); outline-offset: 3px; border-radius: 4px; }
@@ -116,7 +118,7 @@ function injectStyles(root: ShadowRoot): void {
   root.appendChild(style);
 }
 
-interface WidgetHandlers {
+export interface WidgetHandlers {
   onClose: () => void;
   onToggleCollapse: () => void;
   onSave: () => Promise<void>;
@@ -149,14 +151,16 @@ export function renderWidget(
   data: WidgetData,
   handlers: WidgetHandlers,
   collapsed: boolean,
-  opts: { animate?: boolean } = {}
+  // animate: slide in (newly appearing). settle: animate the change between card and pill. saved: the word is
+  // already in the library (saved from this or another tab), so the button starts in its "Added" state.
+  opts: { animate?: boolean; settle?: boolean; saved?: boolean } = {}
 ): void {
   root.innerHTML = "";
   injectStyles(root);
 
   if (collapsed) {
     const pill = document.createElement("button");
-    pill.className = "pill";
+    pill.className = opts.settle ? "pill settle" : "pill";
     pill.innerHTML = `<span class="pillWord"></span>`;
     pill.querySelector(".pillWord")!.textContent = data.word;
     pill.addEventListener("click", handlers.onToggleCollapse);
@@ -165,7 +169,7 @@ export function renderWidget(
   }
 
   const card = document.createElement("section");
-  card.className = opts.animate ? "card enter" : "card";
+  card.className = opts.animate ? "card enter" : opts.settle ? "card unfold" : "card";
   card.setAttribute("aria-label", "Word of the day");
   card.innerHTML = `
     <header class="head">
@@ -205,6 +209,11 @@ export function renderWidget(
 
   const saveBtn = card.querySelector(".saveBtn") as HTMLButtonElement;
   const widgetErr = card.querySelector(".widgetErr") as HTMLElement;
+  if (opts.saved) {
+    saveBtn.disabled = true;
+    saveBtn.classList.add("saved");
+    saveBtn.innerHTML = `${ICON_CHECK_CIRCLE}Added to my library`;
+  }
   saveBtn.addEventListener("click", async () => {
     widgetErr.textContent = "";
     saveBtn.disabled = true;
@@ -226,28 +235,55 @@ export function renderWidget(
   document.fonts?.ready.then(() => card.isConnected && fitWord(card));
 }
 
-export function mountWidget(data: WidgetData, deps: { onSave: () => Promise<void> }): void {
-  const host = document.createElement("div");
-  host.id = "lexi-widget-host";
-  const shadow = host.attachShadow({ mode: "open" });
-  document.body.appendChild(host);
+export interface WidgetView {
+  data: WidgetData;
+  collapsed: boolean;
+  saved: boolean;
+}
 
-  let collapsed = false;
-  let firstRender = true;
-  const rerender = () => {
-    // slide in only when the widget first appears, not when re-expanding from the pill
-    renderWidget(
-      shadow,
-      data,
-      { onClose: () => host.remove(), onToggleCollapse: toggle, onSave: deps.onSave },
-      collapsed,
-      { animate: firstRender }
-    );
-    firstRender = false;
+export interface WidgetHost {
+  // Show (or update) the widget in this tab, or remove it with null. Safe to call repeatedly with the same view.
+  update(view: WidgetView | null, opts?: { animate?: boolean }): void;
+}
+
+// Thin DOM wiring, like the old mountWidget: one fixed host element per tab holding the shadow root. It no longer
+// owns any state (collapsed / closed) - that lives in shared storage (see lib/widgetState.ts) so every tab agrees -
+// it just draws whatever view it is handed, and only redraws when that view actually changed.
+export function createWidgetHost(handlers: WidgetHandlers): WidgetHost {
+  let host: HTMLDivElement | null = null;
+  let shadow: ShadowRoot | null = null;
+  let lastKey = "";
+  let lastCollapsed: boolean | null = null;
+
+  return {
+    update(view, opts = {}) {
+      if (!view) {
+        host?.remove();
+        host = null;
+        shadow = null;
+        lastKey = "";
+        lastCollapsed = null;
+        return;
+      }
+      const created = !host || !host.isConnected;
+      if (created) {
+        host = document.createElement("div");
+        host.id = "lexi-widget-host";
+        shadow = host.attachShadow({ mode: "open" });
+        document.body.appendChild(host);
+        lastKey = "";
+        lastCollapsed = null;
+      }
+      const key = JSON.stringify(view);
+      if (key === lastKey) return;
+      renderWidget(shadow!, view.data, handlers, view.collapsed, {
+        // slide in only when it newly appears live; ease between card and pill when the shape changes
+        animate: created && Boolean(opts.animate) && !view.collapsed,
+        settle: !created && lastCollapsed !== null && lastCollapsed !== view.collapsed,
+        saved: view.saved,
+      });
+      lastKey = key;
+      lastCollapsed = view.collapsed;
+    },
   };
-  function toggle() {
-    collapsed = !collapsed;
-    rerender();
-  }
-  rerender();
 }

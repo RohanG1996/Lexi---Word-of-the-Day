@@ -28,6 +28,11 @@
       "matches": ["<all_urls>"],
       "js": ["selection.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ],
   "options_page": "options.html"

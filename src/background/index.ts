@@ -6,6 +6,7 @@ import { createModelClient } from "../lib/modelClient";
 import { ensureTodayWord, shouldInjectWidget, markWidgetShown } from "../lib/wordOfDayService";
 import { addWord } from "../lib/addWord";
 import { createProfileStore, hasArrived, profilePreference } from "../lib/profile";
+import { createWidgetStateStore } from "../lib/widgetState";
 import {
   ADD_WORD_MESSAGE,
   SIGN_IN_MESSAGE,
@@ -92,6 +93,17 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 // accepted limitation for v1.
 const inFlightTabs = new Set<number>();
 
+// Loads the widget script into every open web page. Pages that already run it ignore the second copy (see the flag in
+// content/index.ts); pages Chrome won't let us script (chrome://, the Web Store, discarded tabs) simply fail quietly.
+async function injectWidgetIntoAllTabs(): Promise<void> {
+  const tabs = await chrome.tabs.query({ url: ["http://*/*", "https://*/*"] });
+  await Promise.allSettled(
+    tabs
+      .filter((t): t is chrome.tabs.Tab & { id: number } => t.id !== undefined)
+      .map((t) => chrome.scripting.executeScript({ target: { tabId: t.id }, files: ["content.js"] }))
+  );
+}
+
 async function maybeShowWidget(tabId: number) {
   if (inFlightTabs.has(tabId)) return;
   inFlightTabs.add(tabId);
@@ -123,7 +135,11 @@ async function maybeShowWidget(tabId: number) {
       preference: profilePreference(profile),
     });
 
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+    // Show the widget in EVERY tab, not just this one: record today's shared state (tabs already running the widget
+    // script pick it up from storage instantly), then also load the script into tabs that were open before the
+    // extension was installed / reloaded and so don't have it yet. Tabs opened later get it from the manifest.
+    await createWidgetStateStore(chrome.storage.local).setState({ date: todayISO(), mode: "expanded" });
+    await injectWidgetIntoAllTabs();
     await markWidgetShown({ lastShownStore: deps.lastShownStore, today: todayISO });
   } catch (err) {
     console.error("Lexi: failed to show widget", err);
