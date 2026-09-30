@@ -17,7 +17,7 @@ export interface WordExplanation {
 }
 
 export function buildExplainPrompt(word: string): string {
-  return `Give a concise dictionary-style meaning (max 20 words), one natural example sentence, an IPA pronunciation, the part of speech, and the single best-fitting topic (one of: ${TOPICS.join(", ")}) for the word "${word}". Respond as JSON: {"meaning": "...", "example": "...", "pronunciation": "/.../", "partOfSpeech": "noun", "topic": "Everyday"}. No other text.`;
+  return `Give a concise dictionary-style meaning (max 20 words), one natural example sentence, an IPA pronunciation, the part of speech, and the single best-fitting topic for the word or term "${word}". Topic must be exactly one of: ${TOPICS.join(", ")}. Pick the field the term belongs to (for example "design system" or "affordance" is Design, "latency" or "AI workflows" is Technology, "liability" is Law). Use Everyday ONLY for general-purpose words that belong to no specific field. Respond as JSON: {"meaning": "...", "example": "...", "pronunciation": "/.../", "partOfSpeech": "noun", "topic": "<one topic from the list>"}. No other text.`;
 }
 
 export function parseExplainResponse(raw: string): WordExplanation {
