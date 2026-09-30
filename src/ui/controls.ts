@@ -62,6 +62,14 @@ export const CONTROLS_CSS = `
   .lx .lx-chip { height: 32px; box-sizing: border-box; padding: 0 14px; border: none; border-radius: 16px; font: 500 12px var(--sans); color: var(--muted); background: var(--btn); cursor: pointer; }
   .lx .lx-chip[aria-pressed="true"] { background: var(--chip-on); color: var(--ink); font-weight: 600; }
   .lx .lx-chip:hover:not([aria-pressed="true"]) { background: #E6DEC9; }
+  /* eased, not snapped: dropdown lists drop in, the industry field unfolds under the goal, selections settle */
+  @keyframes lxDrop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @keyframes lxFadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: no-preference) {
+    .lx .lx-ddList { animation: lxDrop 160ms cubic-bezier(0.22, 0.9, 0.3, 1); }
+    .lx .lx-industry { animation: lxFadeUp 240ms cubic-bezier(0.22, 0.9, 0.3, 1); }
+    .lx .lx-goal, .lx .lx-ddOption, .lx .lx-chip, .lx .lx-radio, .lx .lx-field, .lx .lx-ddTrigger { transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease; }
+  }
   .lx button:focus-visible, .lx input:focus-visible { outline: 1.5px solid #77736C; outline-offset: 2px; }
 `;
 

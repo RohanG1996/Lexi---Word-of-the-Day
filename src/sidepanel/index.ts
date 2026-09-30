@@ -13,6 +13,7 @@ import { createProfileStore } from "../lib/profile";
 import { deleteAccountData } from "../lib/account";
 import { requestSignIn, requestShowOnboarding } from "../lib/messages";
 import { renderSettings, SETTINGS_CSS } from "./settings";
+import { animateHeight, collapseAndRemove, collapseSection, expandSection } from "../ui/motion";
 import {
   ICON_BOOK,
   ICON_CHECK_CIRCLE,
@@ -69,13 +70,45 @@ function isThisWeek(record: CompactWordRecord): boolean {
   return new Date(record.savedDate) >= daysAgo(7);
 }
 
+// Set by goTo(): the next render is a change of screen, so the new screen eases in. A re-render for any other reason
+// (a word saved from elsewhere, the confirmation timing out) must NOT replay that, or the panel would look refreshed.
+let animateNextRender = false;
+let renderedView: View | null = null;
+
+const scroller = (root: ParentNode): HTMLElement | null => root.querySelector<HTMLElement>(".list, .body");
+
 async function render(): Promise<void> {
   const all = newestFirst(await wordStore.getAllWords());
-  app.innerHTML = "";
-  if (view === "library") app.appendChild(await renderLibrary(all));
-  else if (view === "search") app.appendChild(renderSearch(all));
-  else if (view === "settings") app.appendChild(await renderSettingsView());
-  else app.appendChild(renderSave());
+  // Build the whole next screen first and swap it in one step - clearing the panel while it is still being built
+  // is what made the panel flash blank and jump back to the top.
+  let next: HTMLElement;
+  if (view === "library") next = await renderLibrary(all);
+  else if (view === "search") next = renderSearch(all);
+  else if (view === "settings") next = await renderSettingsView();
+  else next = renderSave();
+
+  const sameScreen = renderedView === view;
+  const prevScroll = sameScreen ? scroller(app)?.scrollTop ?? 0 : 0;
+  const prevBannerHeight = sameScreen ? app.querySelector<HTMLElement>(".todayBanner")?.offsetHeight ?? null : null;
+
+  app.replaceChildren(next);
+  renderedView = view;
+
+  if (prevScroll) {
+    const s = scroller(next);
+    if (s) s.scrollTop = prevScroll;
+  }
+  if (animateNextRender) {
+    animateNextRender = false;
+    next.classList.add("enter");
+  }
+  // The banner swapped for the confirmation (or back) has a different height: glide between the two so the list
+  // moves up smoothly instead of jumping.
+  const banner = next.querySelector<HTMLElement>(".todayBanner");
+  if (banner && prevBannerHeight !== null) {
+    const height = banner.offsetHeight;
+    if (Math.abs(height - prevBannerHeight) > 1) void animateHeight(banner, prevBannerHeight, height);
+  }
 }
 
 // Settings edits the same profile the onboarding pop-up creates. "Delete account" wipes everything Lexi stores for
@@ -103,6 +136,7 @@ function goTo(next: View): void {
     selectMode = false;
     selectedWords.clear();
   }
+  if (next !== view) animateNextRender = true;
   view = next;
   render();
 }
@@ -181,7 +215,7 @@ function wordRow(
       for (const other of app.querySelectorAll<HTMLElement>(".row.open")) {
         other.classList.remove("open");
         other.querySelector(".rowHead")!.setAttribute("aria-expanded", "false");
-        (other.querySelector(".rowBody") as HTMLElement).hidden = true;
+        void collapseSection(other.querySelector(".rowBody") as HTMLElement);
       }
       if (!loaded) {
         loaded = true;
@@ -190,7 +224,8 @@ function wordRow(
     }
     row.classList.toggle("open", opening);
     head.setAttribute("aria-expanded", String(opening));
-    body.hidden = !opening;
+    // the word opens and closes with a height glide rather than snapping
+    void (opening ? expandSection(body) : collapseSection(body));
   });
   return row;
 }
@@ -223,9 +258,13 @@ function clearAddedConfirmation(): void {
 function showAddedConfirmation(word: string): void {
   clearAddedConfirmation();
   justAdded = word;
-  justAddedTimer = setTimeout(() => {
-    justAdded = null;
+  justAddedTimer = setTimeout(async () => {
     justAddedTimer = null;
+    // Fade the confirmation out while its space closes up, so the list glides to the top. Only once that is done is
+    // the panel re-rendered - and by then the layout already matches, so nothing visibly changes.
+    const banner = view === "library" ? app.querySelector<HTMLElement>(".todayBanner") : null;
+    if (banner) await collapseAndRemove(banner);
+    justAdded = null;
     if (view === "library") render();
   }, ADDED_CONFIRMATION_MS);
 }

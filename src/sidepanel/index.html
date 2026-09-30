@@ -182,6 +182,21 @@
       .quizCard .revealBtn { flex: none; width: 240px; margin: 0 auto; }
       .quizCard .meaning { font-family: var(--serif); font-size: 22px; line-height: 30px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-body); margin-bottom: 22px; }
       .quizActions { display: flex; gap: 12px; }
+
+      /* Motion - one set of timings and one easing across the extension (see src/ui/motion.ts): fast 160ms, base
+         240ms, slow 320ms, cubic-bezier(0.22, 0.9, 0.3, 1). Things ease in and glide; nothing snaps. All of it is off
+         for people who prefer reduced motion. */
+      .todayBanner { display: flow-root; } /* keeps the card's margins inside, so its height animates accurately */
+      @keyframes panelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+      @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+      @keyframes drawerUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+      @media (prefers-reduced-motion: no-preference) {
+        .panel.enter { animation: panelIn 240ms cubic-bezier(0.22, 0.9, 0.3, 1); }
+        .addedCard, .preview:not([hidden]), .primaryBtn:not([hidden]) { animation: fadeUp 240ms cubic-bezier(0.22, 0.9, 0.3, 1); }
+        .deleteDrawer { animation: drawerUp 240ms cubic-bezier(0.22, 0.9, 0.3, 1); }
+        .iconBtn, .pillBtn, .primaryBtn, .todayAddBtn, .chip, .checkbox, .textBtn, .deleteDrawerBtn { transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, opacity 160ms ease; }
+        .chev { transition-duration: 240ms; transition-timing-function: cubic-bezier(0.22, 0.9, 0.3, 1); }
+      }
     </style>
   </head>
   <body>

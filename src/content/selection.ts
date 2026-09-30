@@ -46,6 +46,10 @@ function injectStyles(root: ShadowRoot): void {
     .popover.placeLeft .caret { left: auto; right: -6px; border-left: none; border-bottom: none;
       border-right: 1px solid var(--border); border-top: 1px solid var(--border); }
     .row { height: 35px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 14px; border-bottom: 1px solid var(--rule); }
+    /* eased in rather than snapping on: a short fade and rise (same easing as the rest of the extension) */
+    @keyframes lexiPopoverIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: no-preference) { .popover { animation: lexiPopoverIn 160ms cubic-bezier(0.22, 0.9, 0.3, 1); } }
+    .action { transition: background-color 160ms ease, color 160ms ease; }
     .brand { display: flex; align-items: center; gap: 7px; }
     .brand svg { display: block; }
     .label { font-size: 9px; font-weight: 500; letter-spacing: 0.14em; color: #66615A; text-transform: uppercase; }

@@ -47,7 +47,19 @@ const CSS = `
     to { transform: translateX(0); opacity: 1; }
   }
   .card.enter { animation: lexiSlideIn 450ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
-  @media (prefers-reduced-motion: reduce) { .card.enter { animation: none; } }
+  /* Collapsing to the pill and re-expanding are eased too (same easing and timing as the rest of the extension)
+     instead of snapping: the card unfolds from its top-right corner, the pill fades and settles in. */
+  @keyframes lexiUnfold {
+    from { opacity: 0; transform: scale(0.94) translateY(-4px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes lexiPillIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: none; }
+  }
+  .card:not(.enter) { transform-origin: top right; animation: lexiUnfold 240ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
+  .pill { transform-origin: top right; animation: lexiPillIn 200ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
+  @media (prefers-reduced-motion: reduce) { .card.enter, .card:not(.enter), .pill { animation: none; } }
 
   button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
   button:focus-visible { outline: 1.5px solid var(--line); outline-offset: 3px; border-radius: 4px; }

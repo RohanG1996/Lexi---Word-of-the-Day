@@ -77,8 +77,17 @@ const CSS = `
   .next:disabled { opacity: 0.5; cursor: default; }
   .err { margin: 10px 32px 0; font: 400 12px/16px var(--sans); color: #A33333; }
   .err:empty { display: none; }
-  @media (prefers-reduced-motion: no-preference) { .dialog { animation: lexiPop 220ms ease-out; } }
+  /* The dialog itself eases in once (.intro); on later steps only the step's content glides in, so the frame, header
+     and footer stay put instead of the whole dialog popping again. */
+  @media (prefers-reduced-motion: no-preference) {
+    .dialog.intro { animation: lexiPop 260ms cubic-bezier(0.22, 0.9, 0.3, 1); }
+    .dialog:not(.intro) .body > * { animation: lexiStep 240ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
+    .scrim { animation: lexiScrim 260ms ease-out; }
+    .next, .google { transition: background-color 160ms ease, opacity 160ms ease; }
+  }
   @keyframes lexiPop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+  @keyframes lexiStep { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes lexiScrim { from { background: rgba(23,23,23,0); } to { background: rgba(23,23,23,0.45); } }
 `;
 
 const TOTAL_STEPS = 4;
@@ -104,8 +113,9 @@ export function renderOnboarding(root: ShadowRoot | HTMLElement, deps: Onboardin
   root.replaceChildren(fonts, style, scrim);
 
   function shell(title: string): { body: HTMLElement; foot: HTMLElement } {
+    const firstStep = scrim.childElementCount === 0;
     scrim.replaceChildren();
-    const dialog = h("div", "dialog");
+    const dialog = h("div", firstStep ? "dialog intro" : "dialog");
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
     dialog.setAttribute("aria-label", title);
