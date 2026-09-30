@@ -267,6 +267,7 @@ export function createWidgetHost(handlers: WidgetHandlers): WidgetHost {
       }
       const created = !host || !host.isConnected;
       if (created) {
+        document.querySelectorAll("#lexi-widget-host").forEach((el) => el.remove()); // never two widgets in a tab
         host = document.createElement("div");
         host.id = "lexi-widget-host";
         shadow = host.attachShadow({ mode: "open" });

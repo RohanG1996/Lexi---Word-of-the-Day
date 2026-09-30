@@ -15,15 +15,39 @@ function todayISO(): string {
 // is on screen, expanded or minimised comes from shared storage, so all tabs show the same thing and change together.
 const FLAG = "__lexiWidgetLoaded";
 
+// After the extension is reloaded or updated, tabs that were already open keep a "ghost" copy of this script whose
+// chrome.* calls all throw "Extension context invalidated". Its widget can no longer hear the shared state, so it
+// would sit on the page forever (a pill that never goes away). A live copy notices this and removes its own UI.
+function extensionAlive(): boolean {
+  try {
+    return Boolean(chrome.runtime?.id);
+  } catch {
+    return false;
+  }
+}
+
+// Ghost widgets from before a reload live in another isolated world, so the flag below doesn't see them: clear
+// their leftover host elements before drawing a fresh one.
+function removeStaleHosts(): void {
+  document.querySelectorAll("#lexi-widget-host").forEach((el) => el.remove());
+}
+
 async function main() {
   const w = window as unknown as Record<string, unknown>;
   if (w[FLAG]) return;
   w[FLAG] = true;
+  removeStaleHosts();
 
   const todayWordStore = createTodayWordStore(chrome.storage.sync);
   const detailCache = createDetailCache(chrome.storage.local);
   const wordStore = createWordStore(chrome.storage.sync);
   const widgetState = createWidgetStateStore(chrome.storage.local);
+
+  const host = createWidgetHost({
+    onClose: () => void whenAlive(() => controller.handlers.onClose()),
+    onToggleCollapse: () => void whenAlive(() => controller.handlers.onToggleCollapse()),
+    onSave: () => whenAlive(() => controller.handlers.onSave()),
+  });
 
   const controller = createWidgetController({
     state: { get: widgetState.getState, set: widgetState.setState },
@@ -51,20 +75,32 @@ async function main() {
     async save() {
       await saveTodayWord({ todayWordStore, wordStore, detailCache, today: todayISO });
     },
-    host: createWidgetHost({
-      onClose: () => controller.handlers.onClose(),
-      onToggleCollapse: () => controller.handlers.onToggleCollapse(),
-      onSave: () => controller.handlers.onSave(),
-    }),
+    host,
   });
 
+  // Every entry point (page load, a storage change, a click) goes through here: if the extension was reloaded under
+  // this tab, take the widget down instead of throwing "Extension context invalidated".
+  function whenAlive<T>(fn: () => Promise<T> | T): Promise<T | undefined> {
+    if (!extensionAlive()) {
+      host.update(null);
+      return Promise.resolve(undefined);
+    }
+    return Promise.resolve()
+      .then(fn)
+      .catch((err) => {
+        if (!extensionAlive()) host.update(null);
+        else throw err;
+        return undefined;
+      });
+  }
+
   // Page load: show whatever today's shared state says (no animation - the widget is just "there").
-  await controller.refresh(false);
+  await whenAlive(() => controller.refresh(false));
 
   // Any tab changing the state (minimise, close, the day's word arriving, a save) reaches every tab from here.
   chrome.storage.onChanged.addListener((changes) => {
     if (changes[WIDGET_STATE_KEY] || changes["lexi.words"] || changes["lexi.todayWord"] || changes["lexi.cache"]) {
-      void controller.refresh(Boolean(changes[WIDGET_STATE_KEY]));
+      void whenAlive(() => controller.refresh(Boolean(changes[WIDGET_STATE_KEY])));
     }
   });
 }
