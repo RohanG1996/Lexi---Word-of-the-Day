@@ -45,5 +45,13 @@ export function createWordStore(area: StorageArea) {
     await area.set({ [KEY]: updated });
   }
 
-  return { getAllWords, saveWord, deleteWord, deleteWords, updateQuizStats };
+  // Sets the topic on several saved words in one write. Re-reads the list first so words added or deleted while
+  // the (slow) model calls were running are kept as they are.
+  async function setTopics(topics: Record<string, string>): Promise<void> {
+    const byWord = new Map(Object.entries(topics).map(([w, t]) => [w.toLowerCase(), t]));
+    const words = await getAllWords();
+    await area.set({ [KEY]: words.map((w) => (byWord.has(w.word.toLowerCase()) ? { ...w, topic: byWord.get(w.word.toLowerCase()) } : w)) });
+  }
+
+  return { getAllWords, saveWord, deleteWord, deleteWords, updateQuizStats, setTopics };
 }

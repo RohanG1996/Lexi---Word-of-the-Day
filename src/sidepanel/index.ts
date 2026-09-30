@@ -5,6 +5,7 @@ import { createModelClient } from "../lib/modelClient";
 import { addWord } from "../lib/addWord";
 import { createTodayWordStore } from "../lib/dailyWord";
 import { createWidgetStateStore, WIDGET_STATE_KEY } from "../lib/widgetState";
+import { recategoriseWords } from "../lib/recategorise";
 import { saveTodayWord } from "../lib/wordOfDayService";
 import { shouldShowTodayWordBanner } from "../lib/trigger";
 import { OTHER_TOPIC, type WordExplanation } from "../lib/prompts";
@@ -854,3 +855,15 @@ function renderSave(): HTMLDivElement {
 }
 
 render();
+
+// Once per device, re-ask the topic of words that were all filed under "Everyday" by an earlier prompt. The words
+// change in storage, which re-renders the library and Search through the onChanged listener above.
+void (async () => {
+  const settings = await createApiKeyStore(chrome.storage.local).getSettings();
+  if (!settings) return;
+  await recategoriseWords({
+    model: createModelClient(settings.provider, settings.key),
+    wordStore,
+    flagArea: chrome.storage.local,
+  }).catch(() => {});
+})();
